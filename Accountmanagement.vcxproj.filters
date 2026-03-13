@@ -18,5 +18,37 @@
     <ClCompile Include="main.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="menu.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="card_service.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="card_file.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="tool.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="menu.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="card_service.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="card_file.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="model.h">
+      <Filter>源文件</Filter>
+    </ClInclude>
+    <ClInclude Include="global.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="tool.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

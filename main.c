@@ -1,37 +1,32 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include<stdio.h>
-
+#include"menu.h"
 int main(void)
 {
-	int nSelection;
+	printf("欢迎进入计费管理系统\n");
+	printf("\n");
+	int nSelection = -1;
 
 	do 
-	{
-		printf("---------------菜单---------------\n");
-		printf("1.添加卡\n");
-		printf("2.查询卡\n");
-		printf("3.上机\n");
-		printf("4.下机\n");
-		printf("5.充值\n");
-		printf("6.退费\n");
-		printf("7.查询系统\n");
-		printf("8.注销卡\n");
-		printf("0.退出\n");
-		//提示选择菜单编号
-		printf("请选择菜单编号（0~8）：");
+	{ 
+		//输出菜单
+		outputMenu();
+		//接收用户输入的菜单项编号
+		scanf("%d", &nSelection);
 
-		scanf("%d", &nSelection);//输入数字
+		//清除输入流缓存
+		fflush(stdin);  
 		//根据用户输入数字，输出选择的菜单信息
 		switch (nSelection)
 		{
 		case 1:
 		{
-			printf("添加卡\n");
+			add();
 			break;
 		}
 		case 2:
 		{
-			printf("查询卡\n");
+			query();
 			break;
 		}
 		case 3:

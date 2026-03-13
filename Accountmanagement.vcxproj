@@ -102,7 +102,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <CompileAs> </CompileAs>
+      <CompileAs>
+      </CompileAs>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -124,7 +125,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="card_file.c" />
+    <ClCompile Include="card_service.c" />
     <ClCompile Include="main.c" />
+    <ClCompile Include="menu.c" />
+    <ClCompile Include="tool.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="card_file.h" />
+    <ClInclude Include="card_service.h" />
+    <ClInclude Include="global.h" />
+    <ClInclude Include="menu.h" />
+    <ClInclude Include="model.h" />
+    <ClInclude Include="tool.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
