@@ -61,6 +61,7 @@ int main(void)
 		}
 		case 0:
 		{
+			exitApp();
 			printf("ÍË³ö\n");
 			break;
 		}

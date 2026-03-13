@@ -24,7 +24,8 @@ void outputMenu()
 	//提示选择菜单编号
 	printf("请选择菜单编号（0~8）：");
 }
-void add()//添加卡
+//添加卡
+void add()
 {
 	Card card;
 	char aName[32] = { '\0' };
@@ -68,7 +69,7 @@ void add()//添加卡
 	struct tm* endTime;
 
 	startTime = localtime(&card.tStart);       //保存开卡时间
-	endTime = loocaltime(&card.tEnd);          //转化截止时间类型，便于截止时间计算
+	endTime = localtime(&card.tEnd);          //转化截止时间类型，便于截止时间计算
 	endTime->tm_year = startTime->tm_year + 1; //卡的有效期为一年
 	card.tEnd = mktime(endTime);               //重新转化截止时间类型
 
@@ -79,7 +80,8 @@ void add()//添加卡
 	printf("卡号\t密码\t卡状态\t余额\n");
 	printf("%s\t%s\t%d\t%0.1f\n",aName,aPwd,card.nDel,card.fBalance);
 }
-int getSize(const char* pInfo)//获取字符串长度
+//获取字符串长度
+int getSize(const char* pInfo)
 {
 	int nSize = 0;
 	while (*(pInfo + nSize) != '\0')
@@ -88,24 +90,45 @@ int getSize(const char* pInfo)//获取字符串长度
 	}
 	return nSize;
 }
-
-void query()      //查询卡信息
+//查询卡信息
+void query()      
 {
-	int aName[18] = { 0 };
+	int aName[18] = { 0 };//卡号
 	char aTime[20];
-	Card* pCard = NULL;
+	Card* pCard = NULL;//保存卡信息
+
+	int nIndex = 0;
+	int i;
+
 	printf("请输入查询的卡号：");
 	scanf("%s", aName); 
-	pCard = queryCard(aName);
 
-	//将时间转化为字符串
-	timeToString(pCard->tLastUse, aTime);
-	  
-	//显示
-	printf("查询到的卡信息如下：\n");
-	printf("卡号\t状态\t余额\t累计使用\t使用次数\t上次使用时间\n");
-	printf("%s\t%d\t%0.1f\t%0.1f\t\t%d\t\t%s\t\n", pCard->aName, pCard->nStatus, pCard->fBalance, pCard->fTotalUse, pCard->nUseCount, aTime);
+	//查询卡
+	pCard = queryCards(aName, &nIndex);
+	if (pCard == NULL || nIndex == 0)
+	{
+		printf("没有该卡的信息！\n");
+	}
+	else
+	{
+		//显示
+		printf("查询到的卡信息如下：\n");
+		for (i = 0;i < nIndex;i++)
+		{
+			
+			//将时间转化为字符串
+			timeToString(pCard[i].tLastUse, aTime);
+
+			printf("卡号\t状态\t余额\t累计使用\t使用次数\t上次使用时间\n");
+			printf("%s\t%d\t%0.1f\t%0.1f\t\t%d\t\t%s\t\n", pCard[i].aName, pCard[i].nStatus, pCard[i].fBalance, pCard[i].fTotalUse, pCard[i].nUseCount, aTime);
+
+		}
+		
+	}
 	
-
 }
-
+//退出
+void exitApp()
+{
+	releaseCardList();
+}
