@@ -5,5 +5,6 @@ int addCard(Card card);     //统计卡数量
 Card* queryCard(const char* pName);//查询卡，并调出卡的信息
 Card* queryCards(const char* pName, int* pIndex);//模糊查询
 void releaseCardList();//释放内存
+int getCard();//将文件中的卡信息保存在链表中
 
 #endif

@@ -1,11 +1,11 @@
 #include"model.h"
 #include"global.h"
+#include"card_service.h"
+#include"card_file.h"
 
 #include<string.h>
 #include<stdlib.h>
  
-Card aCard[50];   //卡信息结构体数组
-int nCount = 0;   //卡信息实际个数
 
 lpCardNode cardList = NULL;
 
@@ -42,28 +42,7 @@ void releaseCardList()
 //统计卡数量
 int addCard(Card card)
 {
-	lpCardNode cur = NULL;
-
-	if (cardList == NULL)
-	{
-		initCardList();
-	}
-
-	//将数据保存到节点中
-	cur = (lpCardNode)malloc(sizeof(CardNode));
-	if (cur != NULL)
-	{
-		cur->data = card;
-		cur->next = NULL;
-		//遍历找到最后一个节点
-		while (cardList->next != NULL)
-		{
-			cardList = cardList->next;
-		}
-		cardList->next = cur;
-		return TRUE;
-	}
-
+	return saveCard(&card, CARDPATH);
 	return FALSE;
 }
 
@@ -71,8 +50,16 @@ int addCard(Card card)
 Card* queryCard(const char* pName)
 {
 	lpCardNode cur = NULL;
+
+	//调用getCard函数将文件中的卡信息保存在链表中
+	if (FALSE == getCard())
+	{
+		return FALSE;
+	}
+
 	if (cardList != NULL)
 	{
+		//从链表头开始遍历
 		cur = cardList->next;
 		while (cur != NULL)
 		{
@@ -89,6 +76,12 @@ Card* queryCard(const char* pName)
 Card* queryCards(const char* pName, int* pIndex)
 {
 	lpCardNode cur = NULL;
+
+	//调用getCard函数将文件中的卡信息保存在链表中
+	if (FALSE == getCard())
+	{
+		return FALSE;
+	}
 	Card* pCard = (Card*)malloc(sizeof(Card));
 	if (pCard == NULL)
 	{
@@ -105,9 +98,63 @@ Card* queryCards(const char* pName, int* pIndex)
 				(*pIndex)++;
 
 				pCard = (Card*)realloc(pCard, sizeof(Card) * ((*pIndex) + 1));
+				if (pCard == NULL)
+				{
+					return NULL;
+				}
 			}
 			cur = cur->next;
 		}
 	}
 	return pCard;
+}
+
+//将文件中的卡信息保存在链表中
+int getCard()
+{
+	//获取卡信息数据
+	int nCount = getCardCount(CARDPATH);
+
+	//释放链表内存
+	if (cardList != NULL)
+	{
+		releaseCardList();
+	}
+
+	//动态分配内存保存卡信息
+	Card* pCard = (Card*)malloc(sizeof(Card) * nCount);
+	if(pCard == NULL)
+	{
+		return FALSE;
+	}
+	
+	//获取卡信息
+	if(FALSE == readCard(pCard, CARDPATH))
+	{
+		free(pCard);
+		pCard = NULL;
+		return FALSE;
+	}
+
+	for(int i=0; i < nCount; i++)
+	{
+		lpCardNode cur = (lpCardNode)malloc(sizeof(CardNode));
+		if(cur == NULL)
+		{
+			return FALSE;
+		}
+		//初始化新空间
+		memset(cur, 0, sizeof(CardNode));
+
+		//将卡信息保存在链表中
+		cur->data = pCard[i];
+		cur->next = cardList->next;
+
+		cardList->next = cur;
+		cardList = cur;
+	}
+	free(pCard);
+	pCard = NULL;
+	return TRUE;
+
 }

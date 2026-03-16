@@ -6,6 +6,7 @@
 #include"model.h"
 #include"card_service.h"
 #include"tool.h"
+#include"global.h"
 
 
 //输出菜单
@@ -94,7 +95,7 @@ int getSize(const char* pInfo)
 void query()      
 {
 	int aName[18] = { 0 };//卡号
-	char aTime[20];
+	char aTime[TIMELENGTH] = { 0 };//时间字符串
 	Card* pCard = NULL;//保存卡信息
 
 	int nIndex = 0;
@@ -120,7 +121,13 @@ void query()
 			timeToString(pCard[i].tLastUse, aTime);
 
 			printf("卡号\t状态\t余额\t累计使用\t使用次数\t上次使用时间\n");
-			printf("%s\t%d\t%0.1f\t%0.1f\t\t%d\t\t%s\t\n", pCard[i].aName, pCard[i].nStatus, pCard[i].fBalance, pCard[i].fTotalUse, pCard[i].nUseCount, aTime);
+			printf("%s\t%d\t%0.1f\t%0.1f\t\t%d\t\t%s\t\n", 
+				pCard[i].aName, 
+				pCard[i].nStatus, 
+				pCard[i].fBalance, 
+				pCard[i].fTotalUse, 
+				pCard[i].nUseCount, 
+				aTime);
 
 		}
 		

@@ -1,2 +1,7 @@
-﻿  card_service.c
+﻿  card_file.c
+D:\code\C解决方案\AMS\Accountmanagement\card_file.c(105,6): warning C4090: “=”: 不同的“const”限定符
+D:\code\C解决方案\AMS\Accountmanagement\card_file.c(107,22): warning C4090: “函数”: 不同的“const”限定符
+D:\code\C解决方案\AMS\Accountmanagement\card_file.c(107,13): warning C4047: “=”:“char *”与“int”的间接级别不同
+D:\code\C解决方案\AMS\Accountmanagement\card_file.c(119,19): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
+D:\code\C解决方案\AMS\Accountmanagement\card_file.c(122,18): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
   Accountmanagement.vcxproj -> D:\code\C解决方案\AMS\x64\Debug\Accountmanagement.exe
