@@ -5,7 +5,7 @@
 
 #include<string.h>
 #include<stdlib.h>
- 
+#include <stdio.h>
 
 lpCardNode cardList = NULL;
 
@@ -115,6 +115,24 @@ int getCard()
 	//获取卡信息数据
 	int nCount = getCardCount(CARDPATH);
 
+	if (nCount < 0)
+	{
+		// 打开文件失败
+		fprintf(stderr, "getCard: 无法读取文件或打开失败: %s\n", CARDPATH);
+		return FALSE;
+	}
+
+	if (nCount == 0)
+	{
+		// 文件存在但没有卡记录，确保链表清空并返回成功（表示没有数据）
+		if (cardList != NULL)
+		{
+			cardList->next = NULL;
+		}
+		return TRUE;
+	}
+
+
 	//释放链表内存
 	if (cardList != NULL)
 	{
@@ -141,6 +159,8 @@ int getCard()
 		lpCardNode cur = (lpCardNode)malloc(sizeof(CardNode));
 		if(cur == NULL)
 		{
+			free(pCard);
+			fprintf(stderr, "getCard: 链表节点分配失败\n");
 			return FALSE;
 		}
 		//初始化新空间
@@ -151,7 +171,7 @@ int getCard()
 		cur->next = cardList->next;
 
 		cardList->next = cur;
-		cardList = cur;
+		
 	}
 	free(pCard);
 	pCard = NULL;

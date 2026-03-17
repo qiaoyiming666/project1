@@ -90,7 +90,7 @@ int readCard(Card* pCard, const char* pPath)
 
 	return TRUE;
 }
-
+/*
 //解析函数
 Card praseCard(const char* pBuf)
 {
@@ -99,7 +99,7 @@ Card praseCard(const char* pBuf)
 	const char* delims = "##";
 	char* buf = NULL;
 	char* str = NULL;
-	char flag[10][20] = { 0 };//保存解析后的字符串
+	char flag[10][64] = { 0 };//保存解析后的字符串
 	int index = 0;
 
 	buf = pBuf;//第一次调用strtok函数时，buf为解析字符串
@@ -114,21 +114,59 @@ Card praseCard(const char* pBuf)
 	strcpy(card.aName, flag[0]);
 	strcpy(card.aPwd, flag[1]);
 	card.nStatus = atoi(flag[2]);             //卡状态
-	//card.tStart = stringToTime(flag[3]);   //开卡时间
-	//card.tEnd = stringToTime(flag[4]);     //截止时间
+	card.tStart = stringToTime(flag[3]);   //开卡时间
+	card.tEnd = stringToTime(flag[4]);     //截止时间
 	card.fTotalUse = atof(flag[5]);       //累计使用金额
-	//card.tLastUse = stringToTime(flag[6]); //最后使用时间
+	card.tLastUse = stringToTime(flag[6]); //最后使用时间
 	card.nUseCount = atoi(flag[7]);       //使用次数
 	card.fBalance = atof(flag[8]);       //当前余额
 	card.nDel = atoi(flag[9]);         //删除标记
-
-	//char startTime[TIMELENGTH] = { 0 };//开卡时间字符串
-	//char endTime[TIMELENGTH] = { 0 };//截止时间字符串
-	//char LastTime[TIMELENGTH] = { 0 };//最后使用时间字符串
 	
 	return card;
-}
+}*/
+Card praseCard(const char* pBuf)
+{
+	Card card = { 0 };
+	char tmp[CARDCHARNUM];
+	char flag[10][64] = { 0 }; // 增大每字段缓冲以更安全地存放数据
+	int index = 0;
 
+	if (pBuf == NULL)
+	{
+		return card;
+	}
+
+	// 拷贝到可写缓冲区，避免修改 const 数据
+	strncpy(tmp, pBuf, sizeof(tmp) - 1);
+	tmp[sizeof(tmp) - 1] = '\0';
+
+	const char* delims = "##";
+	char* token = strtok(tmp, delims);
+
+	while (token != NULL && index < 10)
+	{
+		// 安全拷贝每个字段
+		strncpy(flag[index], token, sizeof(flag[index]) - 1);
+		flag[index][sizeof(flag[index]) - 1] = '\0';
+		index++;
+		token = strtok(NULL, delims);
+	}
+
+	// 解析字段到结构体（有些字段可能为空，按需检查）
+	if (index > 0) strncpy(card.aName, flag[0], sizeof(card.aName) - 1);
+	if (index > 1) strncpy(card.aPwd, flag[1], sizeof(card.aPwd) - 1);
+	if (index > 2) card.nStatus = atoi(flag[2]);
+	// 如果需要解析时间，请实现 stringToTime 并启用下面两行
+	if (index > 3) card.tStart = stringToTime(flag[3]);
+	if (index > 4) card.tEnd = stringToTime(flag[4]);
+	if (index > 5) card.fTotalUse = (float)atof(flag[5]);
+	if (index > 6) card.tLastUse = stringToTime(flag[6]);
+	if (index > 7) card.nUseCount = atoi(flag[7]);
+	if (index > 8) card.fBalance = (float)atof(flag[8]);
+	if (index > 9) card.nDel = atoi(flag[9]);
+
+	return card;
+}
 //读取卡数量
 int getCardCount(const char* pPath)
 {
@@ -140,7 +178,8 @@ int getCardCount(const char* pPath)
 	if (fp == NULL)
 	{
 		printf("打开文件失败！");
-		return FALSE;
+		//return FALSE;
+		return -1; // 返回-1表示文件打开失败,0表示文件打开成功但没有数据
 	}
 
 	//从文件中读取数据

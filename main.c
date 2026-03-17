@@ -1,10 +1,20 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include<stdio.h>
 #include"menu.h"
+#include"card_service.h"
+#include"global.h"
 int main(void)
 {
 	printf("欢迎进入计费管理系统\n");
 	printf("\n");
+
+	// 初始化卡链表
+	if (initCardList() == FALSE)
+	{
+		printf("初始化失败，程序退出。\n");
+		return 1;
+	}
+
 	int nSelection = -1;
 
 	do 
@@ -15,7 +25,10 @@ int main(void)
 		scanf("%d", &nSelection);
 
 		//清除输入流缓存
-		fflush(stdin);  
+		//fflush(stdin);  
+		int ch;
+		while ((ch = getchar()) != '\n' && ch != EOF) {}
+
 		//根据用户输入数字，输出选择的菜单信息
 		switch (nSelection)
 		{

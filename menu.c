@@ -94,7 +94,7 @@ int getSize(const char* pInfo)
 //查询卡信息
 void query()      
 {
-	int aName[18] = { 0 };//卡号
+	char aName[18] = { 0 };//卡号
 	char aTime[TIMELENGTH] = { 0 };//时间字符串
 	Card* pCard = NULL;//保存卡信息
 
@@ -102,7 +102,16 @@ void query()
 	int i;
 
 	printf("请输入查询的卡号：");
-	scanf("%s", aName); 
+	fflush(stdout);            // 确保提示立即输出
+	//scanf("%s", aName); 
+
+	if (scanf("%17s", aName) != 1) // 限制最多读入17个字符，留1字节给终止符
+	{
+		int ch;
+		while ((ch = getchar()) != '\n' && ch != EOF) {} // 清理残留输入
+		printf("输入无效。\n");
+		return;
+	}
 
 	//查询卡
 	pCard = queryCards(aName, &nIndex);
