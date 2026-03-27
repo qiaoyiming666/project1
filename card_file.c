@@ -3,6 +3,7 @@
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
+#include<time.h>
 
 #include"model.h"
 #include"global.h"
@@ -124,6 +125,8 @@ Card praseCard(const char* pBuf)
 	
 	return card;
 }*/
+
+//解析函数
 Card praseCard(const char* pBuf)
 {
 	Card card = { 0 };
@@ -198,4 +201,63 @@ int getCardCount(const char* pPath)
 	fclose(fp);
 
 	return nCount;
+}
+//根据卡号更新文件里对应的记录（通过比较 aName 字段），成功返回 TRUE
+int updateCard(const Card* pCard, const char* pPath, int nIndex)
+{
+	if (pCard == NULL || pPath == NULL)
+	{
+		return FALSE;
+	}
+
+	char aBuf[CARDCHARNUM] = { 0 };//保存从文件中读取的卡信息字符串
+	char startTime[TIMELENGTH] = { 0 };//开卡时间字符串
+	char endTime[TIMELENGTH] = { 0 };//截止时间字符串
+	char LastTime[TIMELENGTH] = { 0 };//最后使用时间字符串
+	int nLine = 0;//文件行数
+	long pos = 0;//文件指针位置
+
+	//将时间转化为字符串
+	timeToString(pCard->tStart, startTime);
+	timeToString(pCard->tEnd, endTime);
+	timeToString(pCard->tLastUse, LastTime);
+
+	//以只读方式打开文件
+	FILE* fp = fopen(pPath, "r");
+	if (fp == NULL)
+	{
+		return FALSE;
+	}
+	//遍历文件，找到该条记录，进行更新
+
+	while (!feof(fp) && nLine < nIndex)
+	{
+		if(fgets(aBuf, CARDCHARNUM, fp) != NULL)
+		{
+			pos = ftell(fp);//记录文件指针位置
+			nLine++;
+		}
+		else
+		{
+			fclose(fp);
+			return FALSE; // 文件读取错误或行数不足
+		}
+	}
+	//移动文件指针到该记录的开头
+	fseek(fp, pos, SEEK_SET);  //SEEK_SET=0
+	//将数据写入文件
+	fprintf(fp, "%s##%s##%d##%s##%s##%.1f##%s##%d##%.1f##%d\n",
+		pCard->aName,
+		pCard->aPwd,
+		pCard->nStatus,
+		startTime,
+		endTime,
+		pCard->fTotalUse,
+		LastTime,
+		pCard->nUseCount,
+		pCard->fBalance,
+		pCard->nDel);
+	//关闭文件
+	fclose(fp);
+	return TRUE;
 }

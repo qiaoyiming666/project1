@@ -1,2 +1,10 @@
-﻿  card_service.c
-  Accountmanagement.vcxproj -> D:\code\C解决方案\AMS\x64\Debug\Accountmanagement.exe
+﻿  billing_file.c
+  billing_service.c
+  card_file.c
+  card_service.c
+  main.c
+  menu.c
+  service.c
+  正在生成代码...
+D:\code\C解决方案\AMS\Accountmanagement\service.c(83,2): error C2059: 语法错误:“return”
+D:\code\C解决方案\AMS\Accountmanagement\billing_service.c(55,1): warning C4716: “queryBilling”: 必须返回一个值

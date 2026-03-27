@@ -125,18 +125,24 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="billing_file.c" />
+    <ClCompile Include="billing_service.c" />
     <ClCompile Include="card_file.c" />
     <ClCompile Include="card_service.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="menu.c" />
+    <ClCompile Include="service.c" />
     <ClCompile Include="tool.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="billing_file.h" />
+    <ClInclude Include="billing_service.h" />
     <ClInclude Include="card_file.h" />
     <ClInclude Include="card_service.h" />
     <ClInclude Include="global.h" />
     <ClInclude Include="menu.h" />
     <ClInclude Include="model.h" />
+    <ClInclude Include="service.h" />
     <ClInclude Include="tool.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

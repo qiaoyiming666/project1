@@ -1,11 +1,15 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include"model.h"
 #include"global.h"
 #include"card_service.h"
 #include"card_file.h"
+#include"billing_service.h"
 
 #include<string.h>
 #include<stdlib.h>
 #include <stdio.h>
+#include <time.h>
 
 lpCardNode cardList = NULL;
 
@@ -176,5 +180,111 @@ int getCard()
 	free(pCard);
 	pCard = NULL;
 	return TRUE;
-
 }
+
+//上机
+int checkCard(const char* pName, const char* pPwd, LogonInfo* pInfo)
+{
+	if (pName == NULL || pPwd == NULL)
+	{
+		//返回登录失败状态码
+		return LOGONFAILURE;
+	}
+	lpCardNode cardNode = NULL;
+	int nIndex = 0;         //上机卡在卡信息链表的索引
+	Billing billing = { 0 };//保存消费记录信息
+	time_t now = time(NULL); //获取当前时间
+
+	//获取文件中的卡信息
+	if(FALSE == getCard())
+	{
+		// 获取卡信息失败，返回登录失败状态码
+		return LOGONFAILURE;
+	}
+	cardNode = cardList->next;
+	//遍历链表，判断能否进行上机
+	while (cardNode != NULL)
+	{
+		if (strcmp(cardNode->data.aName, pName) == 0 && strcmp(cardNode->data.aPwd, pPwd) == 0)
+		{
+			//只有未在使用的卡才能进行上机操作
+			if(cardNode->data.nStatus!=0)
+			{
+				//卡已在使用或不可用，返回登录失败状态码
+				return LOGONFAILURE;
+			}
+			//只有余额大于0的卡才能进行上机操作
+			if(cardNode->data.fBalance <= 0)
+			{
+				//余额不足，返回余额不足状态码
+				return BALANCEINSUFFICIENT;
+			}
+
+			//备份原始数据以便返回
+			Card oldCard = cardNode->data;
+
+			//更新链表中的卡信息
+			cardNode->data.nStatus = 1;
+			cardNode->data.nUseCount++;
+			cardNode->data.tLastUse = now;
+			//如果能进行上机操作，更新卡信息
+			/*if (updateCard(&cardNode->data, CARDPATH, nIndex))
+			{
+				strcpy(billing.aCardName, pName);
+
+				if (addBilling(billing))
+				{
+					strcpy(pInfo->aCardName, pName);
+					pInfo->fBalance = cardNode->data.fBalance;
+					pInfo->tLogon = billing.tLogon;
+
+					//添加消费记录成功
+					
+					//返回卡信息
+					return &cardNode->data;
+				}
+			}*/
+			// 持久化到文件
+			if (!updateCard(&cardNode->data, CARDPATH, nIndex))
+			{
+				// 持久化失败，恢复内存
+				cardNode->data = oldCard;
+				return LOGONFAILURE;
+			}
+
+			// 填充并添加消费记录
+			Billing billing;
+			memset(&billing, 0, sizeof(billing));
+			strncpy(billing.aCardName, pName, sizeof(billing.aCardName) - 1);
+			billing.tLogon = now;
+			billing.tLogoff = 0;
+			billing.fAmount = 0.0f;
+			billing.nStatus = 0;
+			billing.nDel = 0;
+
+			if (!addBilling(billing))
+			{
+				// 添加消费记录失败：尝试回滚卡文件与内存（将卡信息恢复到 oldCard）
+				cardNode->data = oldCard;
+				// 尝试写回旧记录（若失败，无法保证文件一致性，但仍尽力回滚）
+				updateCard(&oldCard, CARDPATH, nIndex);
+				return LOGONFAILURE;
+			}
+
+			// 成功：将上机信息写入输出参数（如果提供）
+			if (pInfo != NULL)
+			{
+				memset(pInfo, 0, sizeof(*pInfo));
+				strncpy(pInfo->aCardName, pName, sizeof(pInfo->aCardName) - 1);
+				pInfo->tLogon = billing.tLogon;
+				pInfo->fBalance = cardNode->data.fBalance;
+			}
+
+			return LOGONSUCCESS;
+		}
+		cardNode = cardNode->next;
+		nIndex++;
+	}
+	// 未找到卡
+	return CARDNOTFOUND;
+} 

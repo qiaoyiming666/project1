@@ -4,6 +4,7 @@
 
 #include<time.h> 
 
+//卡信息结构体
 typedef struct Card
 {
 	char aName[18];  //卡号
@@ -20,10 +21,42 @@ typedef struct Card
 	time_t tLastUse; //最后使用时间 
 }Card; 
 
+//链表节点结构体
 typedef struct CardNode
 {
 	Card data;
 	struct CardNode* next;
 }CardNode, * lpCardNode;
 
+//消费记录结构体
+typedef struct Billing
+{
+	char aCardName[18]; //卡号
+	time_t tLogon;    //上机时间
+	time_t tLogoff;   //下机时间
+	float fAmount;     //消费金额
+	int nStatus;       //状态（0-未结算；1-已结算）
+	int nDel;         //删除标记（0-未删除；1-删除）
+}Billing;
+//上机信息结构体
+typedef struct logonInfo
+{
+	char aCardName[18]; //卡号
+	time_t tLogon;    //上机时间
+	float fBalance;  //余额
+}LogonInfo;
+//下机信息结构体
+typedef struct logoffInfo
+{
+	char aCardName[18]; //卡号
+	time_t tLogoff;   //下机时间
+	float fAmount;     //消费金额
+	float fBalance;  //余额
+}logoffInfo;
+//消费记录链表节点结构体
+typedef struct BillingNode
+{
+	Billing data;
+	struct BillingNode* next;
+}BillingNode, * lpBillingNode;
 #endif

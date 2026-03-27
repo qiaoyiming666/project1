@@ -10,7 +10,7 @@ void timeToString(time_t t, char* pBuf)
 	strftime(pBuf, 20, "%Y-%m-%d %H:%M:%S", pTimeInfo);
 }
 
-//
+//将“年-月-日 时 ：分 ：秒”转化为time_t
 time_t stringToTime(const char* pTimeStr)
 {
 	struct tm timeInfo;

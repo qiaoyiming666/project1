@@ -1,5 +1,7 @@
 #define _CRT_SECURE_NO_WARNINGS
+
 #include<stdio.h>
+
 #include"menu.h"
 #include"card_service.h"
 #include"global.h"
@@ -44,7 +46,7 @@ int main(void)
 		}
 		case 3:
 		{
-			printf("ио╩З\n");
+			logon();
 			break;
 		}
 		case 4:
