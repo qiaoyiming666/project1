@@ -5,6 +5,7 @@
 #include"menu.h"
 #include"card_service.h"
 #include"global.h"
+
 int main(void)
 {
 	printf("欢迎进入计费管理系统\n");
@@ -51,17 +52,17 @@ int main(void)
 		}
 		case 4:
 		{
-			printf("下机\n");
+			logoff();
 			break;
 		}
 		case 5:
 		{
-			printf("充值\n");
+			addMoney();
 			break;
 		}
 		case 6:
 		{
-			printf("退费\n");
+			refundMoney();
 			break;
 		}
 		case 7:
@@ -71,7 +72,7 @@ int main(void)
 		}
 		case 8:
 		{
-			printf("注销卡\n");
+			annul();
 			break;
 		}
 		case 0:

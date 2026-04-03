@@ -7,4 +7,5 @@
 int saveBilling(const Billing* pBilling, const char* pPath); //将信息保存到billing.ams文件中
 int readBilling(Billing* pBilling, const char* pPath);
 int getBillingCount(const char* pPath);
+int updateBilling(const Billing* pBilling, const char* pPath, int nIndex);
 #endif

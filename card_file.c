@@ -10,84 +10,79 @@
 #include"tool.h"
 #include"card_file.h"
 
-//将卡信息保存到文件中
+// 将卡信息保存为二进制记录
 int saveCard(const Card* pcard, const char* pPath)
 {
-	FILE* fp = NULL;
-	//打开文件
-	if ((fp = fopen(pPath, "a")) == NULL)
+	if(pcard == NULL || pPath == NULL)
 	{
-		fp = fopen(pPath, "w");
-		if (fp == NULL)
-		{
-			printf("打开文件失败！");
-			return FALSE;
-		}
+		return FALSE;
+	}
+	// 以二进制追加方式打开（若不存在则创建）
+	FILE* fp = fopen(pPath, "ab");
+	if (fp == NULL)
+	{
+		printf("打开文件失败！\n");
+		return FALSE;
 	}
 	
-	//将数据写入文件
-	//将时间转化为字符串
-	char startTime[TIMELENGTH] = { 0 };//开卡时间字符串
-	char endTime[TIMELENGTH] = { 0 };//截止时间字符串
-	char LastTime[TIMELENGTH] = { 0 };//最后使用时间字符串
-
-	timeToString(pcard->tStart, startTime);
-	timeToString(pcard->tEnd, endTime);
-	timeToString(pcard->tLastUse, LastTime);
-	// 按照：卡号##密码##状态##开卡时间##截止时间##累积金额##最后使用时间##使用次数##当前余额##删除标识
-	fprintf(fp, "%s##%s##%d##%s##%s##%.1f##%s##%d##%.1f##%d\n",
-		pcard->aName,
-		pcard->aPwd,
-		pcard->nStatus,
-		startTime,
-		endTime,
-		pcard->fTotalUse,
-		LastTime,
-		pcard->nUseCount,
-		pcard->fBalance,
-		pcard->nDel);
-
-	//关闭文件
+	size_t written = fwrite(pcard, sizeof(Card), 1, fp);
 	fclose(fp);
+
+	if (written != 1)
+	{
+		return FALSE;
+	}
 
 
 	return TRUE;
 }
 
-//将文件中的卡信息读取到内存中
+// 将文件中的卡信息读取到内存（一次性读取所有记录）
+// 假定调用者已经为 pCard 分配了足够空间（见 getCard 中的用法）
 int readCard(Card* pCard, const char* pPath)
 {
+	if (pCard == NULL || pPath == NULL)
+	{
+		return FALSE;
+	}
 	//打开文件
-	FILE* fp = fopen(pPath, "r");
-	char aBuf[CARDCHARNUM] = { 0 };//保存从文件中读取的卡信息字符串
-	int i = 0;
-	
+	FILE* fp = fopen(pPath, "rb");
 	if (fp == NULL)
 	{
-		printf("打开文件失败！");
+		// 文件可能不存在或打开失败，视为无数据（保持兼容旧逻辑）
+		// 但返回 FALSE 以便调用方能区分错误
+		printf("打开文件失败！\n");
 		return FALSE;
 	}
 
-	//从文件中读取数据
-	while (fgets(aBuf, CARDCHARNUM, fp) != NULL)      //原feof(fp) != NULL
+	// 计算记录数并一次性读取
+	if (fseek(fp, 0, SEEK_END) != 0)
 	{
-		size_t len = strlen(aBuf);
-		if (len > 0)    //原fgets(aBuf, CARDCHARNUM, fp) != NULL
-		{
-			if (aBuf[len - 1] == '\n')
-			{
-				aBuf[len - 1] = '\0';
-			}
-			pCard[i] = praseCard(aBuf);
-			i++;
-		}
-		memset(aBuf, 0, sizeof(aBuf)); //清空aBuf数组
+		fclose(fp);
+		return FALSE;
+	}
+	long filesize = ftell(fp);
+	if (filesize < 0)
+	{
+		fclose(fp);
+		return FALSE;
+	}
+	rewind(fp);
 
-		
+	size_t recordCount = (size_t)(filesize / sizeof(Card));
+	if (recordCount == 0)
+	{
+		fclose(fp);
+		return TRUE; // 文件为空，认为读取成功但没有数据
 	}
 
-	//关闭文件
+	size_t read = fread(pCard, sizeof(Card), recordCount, fp);
 	fclose(fp);
+
+	if (read != recordCount)
+	{
+		return FALSE;
+	}
 
 	return TRUE;
 }
@@ -170,94 +165,80 @@ Card praseCard(const char* pBuf)
 
 	return card;
 }
-//读取卡数量
+// 读取二进制文件中的记录数量
 int getCardCount(const char* pPath)
 {
-	//打开文件
-	FILE* fp = fopen(pPath, "r");
-	char aBuf[CARDCHARNUM] = { 0 };//保存从文件中读取的卡信息字符串
-	int nCount = 0;
+	if (pPath == NULL)
+	{
+		return -1;
+	}
 
+	FILE* fp = fopen(pPath, "rb");
 	if (fp == NULL)
 	{
-		printf("打开文件失败！");
-		//return FALSE;
-		return -1; // 返回-1表示文件打开失败,0表示文件打开成功但没有数据
+		// 打开失败（文件不存在或无法访问）
+		return -1;
 	}
 
-	//从文件中读取数据
-	while (fgets(aBuf, CARDCHARNUM, fp) != NULL)
+	if (fseek(fp, 0, SEEK_END) != 0)
 	{
-		
-		if (strlen(aBuf) > 0)
-		{
-			nCount++;
-		}
-		memset(aBuf, 0, sizeof(aBuf)); //清空aBuf数组
-
+		fclose(fp);
+		return -1;
 	}
-
-	//关闭文件
+	long filesize = ftell(fp);
 	fclose(fp);
 
-	return nCount;
+	if (filesize < 0)
+	{
+		return -1;
+	}
+
+	return (int)(filesize / sizeof(Card));
 }
-//根据卡号更新文件里对应的记录（通过比较 aName 字段），成功返回 TRUE
+// 根据索引更新二进制文件中对应的记录（索引从0开始），成功返回 TRUE
 int updateCard(const Card* pCard, const char* pPath, int nIndex)
 {
-	if (pCard == NULL || pPath == NULL)
+	if (pCard == NULL || pPath == NULL || nIndex < 0)
 	{
 		return FALSE;
 	}
 
-	char aBuf[CARDCHARNUM] = { 0 };//保存从文件中读取的卡信息字符串
-	char startTime[TIMELENGTH] = { 0 };//开卡时间字符串
-	char endTime[TIMELENGTH] = { 0 };//截止时间字符串
-	char LastTime[TIMELENGTH] = { 0 };//最后使用时间字符串
-	int nLine = 0;//文件行数
-	long pos = 0;//文件指针位置
-
-	//将时间转化为字符串
-	timeToString(pCard->tStart, startTime);
-	timeToString(pCard->tEnd, endTime);
-	timeToString(pCard->tLastUse, LastTime);
-
-	//以只读方式打开文件
-	FILE* fp = fopen(pPath, "r");
+	FILE* fp = fopen(pPath, "r+b");
 	if (fp == NULL)
 	{
 		return FALSE;
 	}
-	//遍历文件，找到该条记录，进行更新
 
-	while (!feof(fp) && nLine < nIndex)
+	// 获取记录数，验证索引合法性
+	if (fseek(fp, 0, SEEK_END) != 0)
 	{
-		if(fgets(aBuf, CARDCHARNUM, fp) != NULL)
-		{
-			pos = ftell(fp);//记录文件指针位置
-			nLine++;
-		}
-		else
-		{
-			fclose(fp);
-			return FALSE; // 文件读取错误或行数不足
-		}
+		fclose(fp);
+		return FALSE;
 	}
-	//移动文件指针到该记录的开头
-	fseek(fp, pos, SEEK_SET);  //SEEK_SET=0
-	//将数据写入文件
-	fprintf(fp, "%s##%s##%d##%s##%s##%.1f##%s##%d##%.1f##%d\n",
-		pCard->aName,
-		pCard->aPwd,
-		pCard->nStatus,
-		startTime,
-		endTime,
-		pCard->fTotalUse,
-		LastTime,
-		pCard->nUseCount,
-		pCard->fBalance,
-		pCard->nDel);
-	//关闭文件
+	long filesize = ftell(fp);
+	if (filesize < 0)
+	{
+		fclose(fp);
+		return FALSE;
+	}
+	int recordCount = (int)(filesize / sizeof(Card));
+	if (nIndex >= recordCount)
+	{
+		fclose(fp);
+		return FALSE;
+	}
+	// 定位到指定记录并覆盖写入
+	if (fseek(fp, (long)nIndex * (long)sizeof(Card), SEEK_SET) != 0)
+	{
+		fclose(fp);
+		return FALSE;
+	}
+	size_t written = fwrite(pCard, sizeof(Card), 1, fp);
 	fclose(fp);
+
+	if (written != 1)
+	{
+		return FALSE;
+	}
 	return TRUE;
 }

@@ -2,6 +2,7 @@
 
 #include<stdio.h>
 #include<string.h>
+#include<time.h>
 
 #include"model.h"
 #include"card_service.h"
@@ -236,33 +237,227 @@ void logoff()
 {
 	char aName[20] = { 0 };//卡号
 	char aPwd[8] = { 0 };//密码
+	logoffInfo info = { 0 };//保存下机信息
+	int rc = 0;//调用新的 doLogoffInfo（返回状态码，并通过 info 输出下机信息）
 
 	printf("---------------下机---------------\n");
 	printf("请输入卡号：");
 	//提示用户输入下机的卡号和密码
-	scanf("%19s", aName);
+	if (scanf("%19s", aName) != 1)
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+		printf("输入无效。\n");
+		return;
+	}
 	printf("请输入密码：");
-	scanf("%7s", aPwd);
+	if (scanf("%7s", aPwd) != 1)
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+		printf("输入无效。\n");
+		return;
+	}
+
+	// 清理残留输入
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+	}
 	//根据输入的卡号和密码进行验证，判断能否进行下机操作
 
 	//调用下机函数进行下机操作
-	int nResult = doLogoffInfo(aName, aPwd, NULL); // 目前不处理下机信息输出
+	rc = doLogoffInfo(aName, aPwd, &info); // 目前不处理下机信息输出
 	//显示下机信息（下机时间、消费金额、余额等）
-	switch	(nResult)
+	if (rc == LOGOFFSUCCESS)
 	{
-		case LOGOFFFAILURE:
-		printf("下机失败！\n");
-		case LOGOFFSUCCESS:
+		char timeBuf[TIMELENGTH] = { 0 };
+		timeToString(info.tLogoff, timeBuf);
 		printf("下机成功！\n");
-		break;
+		printf("卡号：%s\n", info.aCardName);
+		printf("下机时间：%s\n", timeBuf);
+		printf("本次消费：%.1f\n", info.fAmount);
+		printf("当前余额：%.1f\n", info.fBalance);
+	}
+	else if (rc == UNUSED)
+	{
+		printf("下机失败：该卡当前未上机。\n");
+	}
+	else if (rc == BALANCEINSUFFICIENT)
+	{
+		printf("下机失败：余额不足，无法完成结算。\n");
+	}
+	else if (rc == LOGOFFFAILURE)
+	{
+		printf("下机失败：系统错误或未找到有效计费信息。\n");
+	}
+	else
+	{
+		printf("下机失败：未知错误（%d）。\n", rc);
 	}
 }
 
+//充值
+void addMoney()
+{
+	// 充值界面
+	char aName[18] = { 0 };//卡号最大17字符
+	char aPwd[8] = { 0 };//密码最大7字符
+	float fAmount = 0.0f;
+	MoneyInfo moneyInfo = { 0 };
 
+	//提示用户输入充值的卡号、密码和金额
+	printf("---------------充值---------------\n");
+	printf("请输入卡号：");
+	if (scanf("%17s", aName) != 1)
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+		printf("输入无效。\n");
+		return;
+	}
+	printf("请输入密码：");
+	if (scanf("%7s", aPwd) != 1)
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+		printf("输入无效。\n");
+		return;
+	}
+	printf("请输入充值金额：");
+	if (scanf("%f", &fAmount) != 1)
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+		printf("金额输入无效。\n");
+		return;
+	}
+	// 清理残留输入
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+	}
 
+	if (fAmount <= 0.0f)
+	{
+		printf("充值金额必须大于0。\n");
+		return;
+	}
 
+	moneyInfo.fAmount = fAmount;
+	//充值
+	//显示充值结果（余额等）
+	
+	// 调用业务层处理充值（写日志并更新余额）
+	if (doAddMoney(aName, aPwd, &moneyInfo) == TRUE)
+	{
+		printf("充值成功！\n");
+		printf("卡号：%s\n充值金额：%.1f\n当前余额：%.1f\n", moneyInfo.aCardName, moneyInfo.fAmount, moneyInfo.fBalance);
+	}
+	else
+	{
+		printf("充值失败！请检查卡号/密码是否正确，卡是否被删除或正在使用，或系统错误。\n");
+	}
+}
 
+//退费
+void refundMoney()
+{
+	// 退费界面
+	char aName[18] = { 0 };//卡号最大17字符
+	char aPwd[8] = { 0 };//密码最大7字符
+	float fAmount = 0.0f;
+	MoneyInfo moneyInfo = { 0 };
+	//提示用户输入退费的卡号、密码和金额
+	printf("---------------退费---------------\n");
+	printf("请输入卡号：");
+	if (scanf("%17s", aName) != 1)
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+		printf("输入无效。\n");
+		return;
+	}
+	printf("请输入密码：");
+	if (scanf("%7s", aPwd) != 1)
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+		printf("输入无效。\n");
+		return;
+	}
+	printf("请输入退费金额：");
+	if (scanf("%f", &fAmount) != 1)
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+		printf("金额输入无效。\n");
+		return;
+	}
+	// 清理残留输入
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+	}
 
+	if (fAmount <= 0.0f)
+	{
+		printf("退费金额必须大于0。\n");
+		return;
+	}
+
+	moneyInfo.fAmount = fAmount;
+
+	//退费
+	//显示退费结果（余额等）
+
+	// 调用业务层处理退费（写日志并更新余额）
+	if (doRefundMoney(aName, aPwd, &moneyInfo) == TRUE)
+	{
+		printf("退费成功！\n");
+		printf("卡号：%s\n退费金额：%.1f\n当前余额：%.1f\n", moneyInfo.aCardName, moneyInfo.fAmount, moneyInfo.fBalance);
+	}
+	else
+	{
+		printf("退费失败！请检查卡号/密码是否正确、卡是否被删除或正在使用，或余额是否足够，或系统错误。\n");
+	}
+}
+
+//注销卡
+void annul()
+{
+	char aName[18] = { 0 };//卡号
+	char aPwd[8] = { 0 };//密码
+	Card cardParam = { 0 };
+
+	printf("---------------注销卡---------------\n");
+	printf("请输入卡号：");
+	//提示用户输入退费的卡号、密码和金额
+	if (scanf("%17s", aName) != 1)
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+		printf("输入无效。\n");
+		return;
+	}
+	printf("请输入密码：");
+	if (scanf("%7s", aPwd) != 1)
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+		printf("输入无效。\n");
+		return;
+	}
+
+	// 清理残留输入
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+	}
+
+	// 准备参数并调用业务层注销函数
+	strncpy(cardParam.aName, aName, sizeof(cardParam.aName) - 1);
+	strncpy(cardParam.aPwd, aPwd, sizeof(cardParam.aPwd) - 1);
+	cardParam.fBalance = 0.0f;
+
+	if (annulCard(&cardParam) == TRUE)
+	{
+		// 注销成功，显示卡号和退款金额（两列）
+		printf("注销成功！\n");
+		printf("卡号\t退款金额\n");
+		printf("%s\t%.1f\n", cardParam.aName, cardParam.fBalance);
+	}
+	else
+	{
+		printf("注销卡失败！\n");
+	}
+}
 
 //退出
 void exitApp()

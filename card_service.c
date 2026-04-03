@@ -228,22 +228,7 @@ int checkCard(const char* pName, const char* pPwd, LogonInfo* pInfo)
 			cardNode->data.nUseCount++;
 			cardNode->data.tLastUse = now;
 			//如果能进行上机操作，更新卡信息
-			/*if (updateCard(&cardNode->data, CARDPATH, nIndex))
-			{
-				strcpy(billing.aCardName, pName);
-
-				if (addBilling(billing))
-				{
-					strcpy(pInfo->aCardName, pName);
-					pInfo->fBalance = cardNode->data.fBalance;
-					pInfo->tLogon = billing.tLogon;
-
-					//添加消费记录成功
-					
-					//返回卡信息
-					return &cardNode->data;
-				}
-			}*/
+			
 			// 持久化到文件
 			if (!updateCard(&cardNode->data, CARDPATH, nIndex))
 			{
@@ -288,3 +273,51 @@ int checkCard(const char* pName, const char* pPwd, LogonInfo* pInfo)
 	// 未找到卡
 	return CARDNOTFOUND;
 } 
+
+// 在文件中查找卡（按卡号和密码），返回堆上分配的 Card*，并通过 pIndex 返回文件记录索引。
+// 成功返回非 NULL（调用者负责 free 返回指针）；失败返回 NULL。
+Card* searchCard(const char* pName, const char* pPwd, int* pIndex)
+{
+	if (pName == NULL || pPwd == NULL || pIndex == NULL)
+	{
+		return NULL;
+	}
+
+	int count = getCardCount(CARDPATH);
+	if (count <= 0)
+	{
+		return NULL;
+	}
+
+	Card* all = (Card*)malloc(sizeof(Card) * (size_t)count);
+	if (all == NULL)
+	{
+		return NULL;
+	}
+
+	if (readCard(all, CARDPATH) == FALSE)
+	{
+		free(all);
+		return NULL;
+	}
+
+	for (int i = 0; i < count; i++)
+	{
+		// 只匹配未删除记录
+		if (strcmp(all[i].aName, pName) == 0 && strcmp(all[i].aPwd, pPwd) == 0 && all[i].nDel == 0)
+		{
+			Card* result = (Card*)malloc(sizeof(Card));
+			if (result != NULL)
+			{
+				memcpy(result, &all[i], sizeof(Card));
+				*pIndex = i;
+				free(all);
+				return result;
+			}
+			break;
+		}
+	}
+
+	free(all);
+	return NULL;
+}

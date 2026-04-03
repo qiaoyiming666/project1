@@ -59,4 +59,22 @@ typedef struct BillingNode
 	Billing data;
 	struct BillingNode* next;
 }BillingNode, * lpBillingNode;
+//充值退费记录结构体
+typedef struct Money
+{
+	char aCardName[18]; //卡号
+	time_t tTime;    //时间
+	int nStatus;       //状态（0-充值；1-退费）
+	float fAmount;     //金额
+	int nDel;         //删除标记（0-未删除；1-删除）
+}Money;
+
+typedef struct MoneyInfo
+{
+	char aCardName[18]; //卡号
+
+	float fAmount;     //金额
+	float fBalance;  //余额
+}MoneyInfo;
+
 #endif
