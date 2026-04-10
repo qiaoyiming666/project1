@@ -7,7 +7,11 @@ Card* queryCardsInfo(const char* pName, int* pIndex);//模糊查询
 
 // doLogonInfo 现在返回状态码，并通过 pInfo 输出上机信息（如果成功）
 int doLogonInfo(const char* pName, const char* pPwd, LogonInfo* pInfo);
+// doLogoffInfo 现在返回状态码，并通过 pInfo 输出下机信息（如果成功）
 int doLogoffInfo(const char* pName, const char* pPwd, logoffInfo* pInfo);
+
+// 计算消费金额的函数，单位时间起算，每单位时间单位价格，不足单位时间按单位时间计算
+double calculateAmount(time_t tlogon, time_t tlogoff);
 
 int doAddBalance(const char* pName, const char* pwd, float fAmount);//充值
 int doAddMoney(const char* pName, const char* pwd, MoneyInfo* pMoneyInfo);//充值（业务层，记录充值日志并更新卡余额）

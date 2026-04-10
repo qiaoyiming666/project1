@@ -7,6 +7,7 @@
 #include"global.h"
 #include"tool.h"
 
+// 将充值/退费记录保存到文本文件（追加）
 int saveMoney(const Money* pMoney, const char* pPath)
 {
 	if (pMoney == NULL || pPath == NULL)

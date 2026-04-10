@@ -9,11 +9,13 @@
 #include"global.h"
 
 lpBillingNode billingList = NULL;//消费记录链表
+
 //添加消费记录
 int addBilling(Billing billing)
 {
 	return saveBilling(&billing, BILLINGPATH);
 }
+
 //初始化链表
 void initBillingList()
 {
@@ -25,6 +27,7 @@ void initBillingList()
 		billingList = head;
 	}
 }
+
 //释放
 void releaseBillingList()
 {
@@ -42,6 +45,7 @@ void releaseBillingList()
 		billingList = NULL;
 	}
 }
+
 // 将文件中的消费记录加载到链表中（按文件顺序）
 int getBilling()
 {

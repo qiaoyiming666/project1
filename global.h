@@ -14,6 +14,7 @@
 #define LOGONSUCCESS 1 //上机成功
 #define CARDNOTFOUND 2 //未找到卡
 #define BALANCEINSUFFICIENT 3 //余额不足
+#define PWDERROR 4 // 密码错误
 
 #define LOGOFFFAILURE 0 //下机失败
 #define LOGOFFSUCCESS 1 //下机成功

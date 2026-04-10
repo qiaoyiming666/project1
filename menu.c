@@ -3,6 +3,7 @@
 #include<stdio.h>
 #include<string.h>
 #include<time.h>
+#include<stdlib.h>
 
 #include"model.h"
 #include"card_service.h"
@@ -47,7 +48,7 @@ void add()
 
 	if (nNameSize > 18 || nPwdSize > 8)
 	{
-		printf("卡号或者密码超过规定长度！");
+		printf("卡号或者密码超过规定长度！\n");
 		return;
 	}
 	else
@@ -125,33 +126,57 @@ void query()
 
 	//查询卡
 	pCard = queryCardsInfo(aName, &nIndex);
-	if (pCard == NULL || nIndex == 0)
+
+	// 处理查询失败、未找到或其它异常的情况，给出明确反馈并保证内存安全
+	if (pCard == NULL && nIndex == 0)
 	{
-		printf("没有该卡的信息！\n");
+		// 完全未获取到数据（可能是读取文件错误或query内部失败）
+		printf("查询失败：无法读取卡信息（可能是数据文件损坏或读取失败）。\n");
+		return;
 	}
-	else
+	// nIndex == 0 表示没有匹配项，但 pCard 不为 NULL 可能是 queryCardsInfo 内部分配了内存但未找到匹配项的情况
+	if (nIndex == 0)
 	{
-		//显示
-		printf("查询到的卡信息如下：\n");
-		for (i = 0;i < nIndex;i++)
+		// 没有匹配项，释放可能分配的内存并给出友好提示
+		if (pCard != NULL)
 		{
-			
-			//将时间转化为字符串
-			timeToString(pCard[i].tLastUse, aTime);
-
-			printf("卡号\t状态\t余额\t累计使用\t使用次数\t上次使用时间\n");
-			printf("%s\t%d\t%0.1f\t%0.1f\t\t%d\t\t%s\t\n", 
-				pCard[i].aName, 
-				pCard[i].nStatus, 
-				pCard[i].fBalance, 
-				pCard[i].fTotalUse, 
-				pCard[i].nUseCount, 
-				aTime);
-
+			free(pCard);
+			pCard = NULL;
 		}
-		
+		printf("未找到匹配的卡号：'%s'。\n", aName);
+		printf("提示：\n");
+		printf(" - 请检查卡号是否输入正确（大小写/字符）\n");
+		printf(" - 支持部分匹配查询，例如输入一部分名称\n");
+		return;
 	}
-	
+	//显示
+	printf("查询到的卡信息如下：\n");
+	for (i = 0;i < nIndex;i++)
+	{
+		if (pCard == NULL)
+		{
+			printf("内部错误\n");//卡信息指针为空。
+			break;
+		}
+		//将时间转化为字符串
+		timeToString(pCard[i].tLastUse, aTime);
+
+		printf("卡号\t状态\t余额\t累计使用\t使用次数\t上次使用时间\n");
+		printf("%s\t%d\t%0.1f\t%0.1f\t\t%d\t\t%s\t\n", 
+			pCard[i].aName, 
+			pCard[i].nStatus, 
+			pCard[i].fBalance, 
+			pCard[i].fTotalUse, 
+			pCard[i].nUseCount, 
+			aTime);
+	}
+		
+	// 用完释放内存
+	if (pCard != NULL)
+	{
+		free(pCard);
+		pCard = NULL;
+	}
 }
 
 //上机

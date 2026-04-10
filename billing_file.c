@@ -127,6 +127,7 @@ int getBillingCount(const char* pPath)
 	fclose(fp);
 	return count;
 }
+
 // 根据索引更新 billing 文件中的指定记录（索引从0开始），成功返回 TRUE
 int updateBilling(const Billing* pBilling, const char* pPath, int nIndex)
 {

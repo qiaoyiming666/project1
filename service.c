@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <time.h>
 #include<stdlib.h>
+#include<math.h>
 
 double calculateAmount(time_t tlogon, time_t tlogoff);
 
@@ -27,6 +28,7 @@ Card* queryCardsInfo(const char* pName, int* pIndex)
 {
 	return queryCards(pName, pIndex);
 }
+
 // 上机
 // 处理 checkCard 的新返回值并把上机信息返回给调用方
 int doLogonInfo(const char* pName, const char* pPwd, LogonInfo* pInfo)
@@ -135,19 +137,27 @@ int doLogoffInfo(const char* pName,const char* pPwd,logoffInfo* pInfo)
 	free(pCard);
 	return TRUE;
 }
+
 // 计算消费金额的函数，单位时间起算，每单位时间单位价格，不足单位时间按单位时间计算
 double calculateAmount(time_t tlogon, time_t tlogoff)
 {
-	// 计算消费金额的函数，单位时间起算，每单位时间单位价格，不足单位时间按单位时间计算
-	float ratePerUnitTime = UNITPRICE; // 每单位时间的费用
-	double durationInSeconds = difftime(tlogoff, tlogon);// 计算上机持续时间（秒）
-	int units = (int)(durationInSeconds / UNITTIME);// 计算完整的单位时间数量
-	if (durationInSeconds > 0 && (durationInSeconds - units * UNITTIME) > 0)
+	// 边界检查：未记录上机时间或下机时间早于上机时间，不计费
+	if (tlogon <= 0 || tlogoff <= tlogon)
 	{
-		units++; // 不足一个单位时间按一个单位时间计算
+		return 0.0;
 	}
-	return units * ratePerUnitTime;
+
+	// 使用整数计算秒数，避免浮点误差导致的异常结果
+	long long seconds = (long long)(tlogoff - tlogon); // 安全的差值（秒）
+	long long unitSeconds = (long long)UNITTIME;       // 每个计费单位的秒数
+
+	// 向上取整计算单位数：不足一个单位按一个单位计费
+	long long units = (seconds + unitSeconds - 1) / unitSeconds;
+
+	// 计算并返回总费用（保留 double 返回类型以兼容现有接口）
+	return (double)units * (double)UNITPRICE;
 }
+
 // 充值
 int doAddBalance(const char* pName,const char* pPwd, float fAmount)
 {
@@ -164,12 +174,13 @@ int doAddBalance(const char* pName,const char* pPwd, float fAmount)
 		if (pCard) free(pCard);
 		return FALSE;
 	}
-	if(pCard->nStatus == 1)
-	{
-		//卡正在使用，返回充值失败状态码
-		free(pCard);
-		return FALSE;	
-	}
+	//if(pCard->nStatus == 1)
+	//{
+	//	//卡正在使用，返回充值失败状态码
+	//	free(pCard);
+	//	return FALSE;	
+	//}
+	
 	//更新卡信息(链表和文件)
 	pCard->fBalance += fAmount;//更新余额
 	updateCard(pCard, CARDPATH, nIndex);
@@ -201,16 +212,23 @@ int doAddMoney(const char* pName, const char* pPwd, MoneyInfo* pMoneyInfo)
 		if (pCard) free(pCard);
 		return FALSE;
 	}
-	if (pCard->nStatus == 1)
-	{
-		// 卡正在使用，不允许充值
-		free(pCard);
-		return FALSE;
-	}
+	//if (pCard->nStatus == 1)
+	//{
+	//	// 卡正在使用，不允许充值
+	//	free(pCard);
+	//	return FALSE;
+	//}
+	
 	// 更新卡余额
 	pCard->fBalance += pMoneyInfo->fAmount;
+	// 更新总充值金额
+	pCard->fTotalUse += pMoneyInfo->fAmount;
+
 	if (!updateCard(pCard, CARDPATH, nIndex))
 	{
+		// 更新文件失败，回滚内存修改（尽力）
+		pCard->fBalance -= pMoneyInfo->fAmount;
+		pCard->fTotalUse -= pMoneyInfo->fAmount;
 		free(pCard);
 		return FALSE;
 	}
@@ -226,6 +244,7 @@ int doAddMoney(const char* pName, const char* pPwd, MoneyInfo* pMoneyInfo)
 	{
 		// 写日志失败，尝试回滚卡余额（回滚写失败时仍尽力保持一致性）
 		pCard->fBalance -= pMoneyInfo->fAmount;
+		pCard->fTotalUse -= pMoneyInfo->fAmount;
 		updateCard(pCard, CARDPATH, nIndex);
 		free(pCard);
 		return FALSE;
@@ -306,8 +325,15 @@ int doRefundMoney(const char* pName, const char* pPwd, MoneyInfo* pMoneyInfo)
 
 	// 更新卡余额
 	pCard->fBalance -= pMoneyInfo->fAmount;
+	pCard->fTotalUse -= pMoneyInfo->fAmount;
+
+	if (pCard->fTotalUse < 0.0f) pCard->fTotalUse = 0.0f; // 保持非负
+
 	if (!updateCard(pCard, CARDPATH, nIndex))
 	{
+		// 更新失败，回滚内存修改
+		pCard->fBalance += pMoneyInfo->fAmount;
+		pCard->fTotalUse += pMoneyInfo->fAmount;
 		free(pCard);
 		return FALSE;
 	}
@@ -324,6 +350,7 @@ int doRefundMoney(const char* pName, const char* pPwd, MoneyInfo* pMoneyInfo)
 	{
 		// 写日志失败，尝试回滚余额变更
 		pCard->fBalance += pMoneyInfo->fAmount;
+		pCard->fTotalUse += pMoneyInfo->fAmount;
 		updateCard(pCard, CARDPATH, nIndex);
 		free(pCard);
 		return FALSE;
@@ -339,7 +366,6 @@ int doRefundMoney(const char* pName, const char* pPwd, MoneyInfo* pMoneyInfo)
 
 // 注销卡：输入参数 pCard 必须包含 aName 和 aPwd，函数将尝试按文件中第一条匹配记录注销
 // 注销成功返回 TRUE，失败返回 FALSE。成功时会将 pCard->fBalance 置为退款金额并填充 aName。
-
 int annulCard(Card* pCard)
 {
 	if (pCard == NULL || pCard->aName[0] == '\0' || pCard->aPwd[0] == '\0')
@@ -403,6 +429,7 @@ int annulCard(Card* pCard)
 	return TRUE;
 }
 
+// 释放链表内存
 void releaseList()
 {
 	releaseCardList();

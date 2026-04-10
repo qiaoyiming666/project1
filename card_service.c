@@ -28,26 +28,59 @@ int initCardList()
 	return FALSE;
 }
 
-//释放
+//释放（释放 head 之后的所有节点，但不释放 head 本身）
 void releaseCardList()
 {
-	lpCardNode cur;
-	if (cardList != NULL)
+	if (cardList == NULL)
 	{
-		if (cardList->next != NULL)
-		{
-			cur = cardList->next;
-			free(cur);
-			cur = NULL;
-		}
+		return;
 	}
+	lpCardNode cur = cardList->next;
+	while (cur != NULL)
+	{
+		lpCardNode tmp = cur->next;
+		free(cur);
+		cur = tmp;
+	}
+	cardList->next = NULL;
 }
 
 //统计卡数量
 int addCard(Card card)
 {
+	int nIndex = 0;
+	// 使用模糊查询检查是否有同名且未被删除的卡
+	Card* matches = queryCards(card.aName, &nIndex);
+
+	// queryCards 返回 NULL 且 nIndex == 0 表示读取失败
+	if (matches == NULL && nIndex == 0)
+	{
+		printf("添加失败：无法读取卡信息文件。\n");
+		return FALSE;
+	}
+
+	// 如果有匹配项，检查是否存在未删除的完全相同卡号
+	if (matches != NULL && nIndex > 0)
+	{
+		for (int i = 0; i < nIndex; i++)
+		{
+			if (strcmp(matches[i].aName, card.aName) == 0 && matches[i].nDel == 0)
+			{
+				printf("添加失败：卡号已存在（%s）。\n", card.aName);
+				free(matches);
+				return FALSE;
+			}
+		}
+	}
+
+	// 释放可能分配的内存
+	if (matches != NULL)
+	{
+		free(matches);
+	}
+
+	// 不存在有效重复时写入新卡记录（允许此前已删除的同名卡重新添加）
 	return saveCard(&card, CARDPATH);
-	return FALSE;
 }
 
 //查询卡，并调出卡的信息
@@ -150,12 +183,30 @@ int getCard()
 		return FALSE;
 	}
 	
-	//获取卡信息
+	//获取卡信息到pCard
 	if(FALSE == readCard(pCard, CARDPATH))
 	{
 		free(pCard);
 		pCard = NULL;
 		return FALSE;
+	}
+
+	// 添加 cardList 非空检查，确保不会对 NULL 指针 cardList 进行解引用
+	if (cardList == NULL)
+	{
+		// 如果 cardList 还未初始化，先初始化链表头
+		if (!initCardList())
+		{
+			free(pCard);
+			return FALSE;
+		}
+	}
+
+	// 将节点追加到链表尾，保持链表顺序与文件记录顺序一致（避免文件索引/链表索引不匹配）
+	lpCardNode tail = cardList;
+	while (tail->next != NULL)
+	{
+		tail = tail->next;
 	}
 
 	for(int i=0; i < nCount; i++)
@@ -170,12 +221,12 @@ int getCard()
 		//初始化新空间
 		memset(cur, 0, sizeof(CardNode));
 
-		//将卡信息保存在链表中
+		//将卡信息保存在链表中（追加到尾部）
 		cur->data = pCard[i];
-		cur->next = cardList->next;
+		cur->next = NULL;
 
-		cardList->next = cur;
-		
+		tail->next = cur;
+		tail = cur;
 	}
 	free(pCard);
 	pCard = NULL;
@@ -190,6 +241,7 @@ int checkCard(const char* pName, const char* pPwd, LogonInfo* pInfo)
 		//返回登录失败状态码
 		return LOGONFAILURE;
 	}
+
 	lpCardNode cardNode = NULL;
 	int nIndex = 0;         //上机卡在卡信息链表的索引
 	Billing billing = { 0 };//保存消费记录信息
@@ -238,7 +290,6 @@ int checkCard(const char* pName, const char* pPwd, LogonInfo* pInfo)
 			}
 
 			// 填充并添加消费记录
-			Billing billing;
 			memset(&billing, 0, sizeof(billing));
 			strncpy(billing.aCardName, pName, sizeof(billing.aCardName) - 1);
 			billing.tLogon = now;

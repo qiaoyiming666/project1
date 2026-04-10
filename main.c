@@ -18,17 +18,32 @@ int main(void)
 		return 1;
 	}
 
-	int nSelection = -1;
+	int nSelection = -1;//储存用户输入数字
 
 	do 
 	{ 
 		//输出菜单
 		outputMenu();
+		
 		//接收用户输入的菜单项编号
-		scanf("%d", &nSelection);
+		/*scanf("%d", &nSelection);*/
+
+		// 接收用户输入的菜单项编号，检查返回值以处理非数字输入
+		if (scanf("%d", &nSelection) != 1)
+		{
+			// 读取失败（非数字），清空输入并提示
+			int ch;
+			while ((ch = getchar()) != '\n' && ch != EOF) {}
+			printf("输入的菜单序列号错误！请输入 0~8 之间的数字。\n");
+			// 设置为非法值，继续循环提示菜单
+			nSelection = -1;
+			continue;
+		}
 
 		//清除输入流缓存
 		//fflush(stdin);  
+		
+		// 清除输入流中残留的换行或其它字符
 		int ch;
 		while ((ch = getchar()) != '\n' && ch != EOF) {}
 
