@@ -90,6 +90,11 @@ int main(void)
 			annul();
 			break;
 		}
+		case 9:
+		{
+			modifyAccount();
+			break;
+		}
 		case 0:
 		{
 			exitApp();

@@ -372,3 +372,69 @@ Card* searchCard(const char* pName, const char* pPwd, int* pIndex)
 	free(all);
 	return NULL;
 }
+
+// 新增：修改卡信息实现
+int modifyCard(const char* oldName, const char* oldPwd, const char* newName, const char* newPwd, int modifyName, int modifyPwd)
+{
+	if (oldName == NULL || oldPwd == NULL)
+	{
+		return FALSE;
+	}
+
+	int nIndex = -1;
+	// 使用 searchCard 获取文件索引与卡记录（searchCard 返回堆上分配的 Card*）
+	Card* pFound = searchCard(oldName, oldPwd, &nIndex);
+	if (pFound == NULL || nIndex < 0)
+	{
+		if (pFound) free(pFound);
+		return FALSE; // 未找到或密码错误
+	}
+
+	// 检查要修改的内容是否合法
+	Card tmp = *pFound; // 工作副本，便于回滚
+	// 修改账号名时检查长度和重复（允许修改为相同名字）
+	if (modifyName)
+	{
+		if (newName == NULL || getSize(newName) < 1 || getSize(newName) > (int)sizeof(tmp.aName) - 1)
+		{
+			free(pFound);
+			return FALSE;
+		}
+		// 如果新名字与旧名字不同，检查重复
+		if (strcmp(newName, pFound->aName) != 0)
+		{
+			Card* exist = queryCard(newName);
+			if (exist != NULL && exist->nDel == 0)
+			{
+				// 已存在有效同名账号
+				return FALSE;
+				free(pFound);
+			}
+		}
+		strncpy(tmp.aName, newName, sizeof(tmp.aName) - 1);
+		tmp.aName[sizeof(tmp.aName) - 1] = '\0';
+	}
+
+	// 修改密码时检查长度
+	if (modifyPwd)
+	{
+		if (newPwd == NULL || getSize(newPwd) < 1 || getSize(newPwd) > (int)sizeof(tmp.aPwd) - 1)
+		{
+			free(pFound);
+			return FALSE;
+		}
+		strncpy(tmp.aPwd, newPwd, sizeof(tmp.aPwd) - 1);
+		tmp.aPwd[sizeof(tmp.aPwd) - 1] = '\0';
+	}
+
+	// 执行写回（按索引覆盖文件记录）
+	if (!updateCard(&tmp, CARDPATH, nIndex))
+	{
+		// 写回失败
+		free(pFound);
+		return FALSE;
+	}
+
+	free(pFound);
+	return TRUE;
+}

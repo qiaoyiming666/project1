@@ -429,6 +429,18 @@ int annulCard(Card* pCard)
 	return TRUE;
 }
 
+// 新增：业务层对修改账号的包装调用
+int doModifyAccount(const char* oldName, const char* oldPwd, const char* newName, const char* newPwd, int modifyName, int modifyPwd)
+{
+	// 简单参数校验
+	if (oldName == NULL || oldPwd == NULL)
+	{
+		return FALSE;
+	}
+	// 调用卡服务层实现
+	return modifyCard(oldName, oldPwd, newName, newPwd, modifyName, modifyPwd);
+}
+
 // 释放链表内存
 void releaseList()
 {

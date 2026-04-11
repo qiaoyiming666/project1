@@ -15,4 +15,10 @@ int getCard();//将文件中的卡信息保存在链表中
 int checkCard(const char* pName, const char* pPwd, LogonInfo * pInfo);
 // 根据卡号和密码搜索卡信息，返回指向 Card 结构的指针，并通过输出参数返回索引位置
 Card* searchCard(const char* pName, const char* pPwd, int* pIndex);
+
+// 新增：修改卡信息（可修改账号名和/或密码）
+// modifyName: 非0表示修改账号名；modifyPwd: 非0表示修改密码
+int modifyCard(const char* oldName, const char* oldPwd, const char* newName, const char* newPwd, int modifyName, int modifyPwd);
+
+
 #endif

@@ -25,6 +25,7 @@ void outputMenu()
 	printf("6.退费\n");
 	printf("7.查询系统\n");
 	printf("8.注销卡\n");
+	printf("9.修改账号名或密码\n");
 	printf("0.退出\n");
 	//提示选择菜单编号
 	printf("请选择菜单编号（0~8）：");
@@ -484,6 +485,98 @@ void annul()
 	}
 }
 
+
+// 修改：menu 层仅负责交互，调用 service.doModifyAccount
+//修改账号或密码
+void modifyAccount()
+{
+	char aName[18] = { 0 };// 当前卡号
+	char aPwd[8] = { 0 };// 当前密码
+	char newName[18] = { 0 };
+	char newPwd[8] = { 0 };
+	int modifyNameFlag = 0;//是否修改账号名
+	int modifyPwdFlag = 0;//是否修改密码
+
+	printf("---------------修改账号名或密码---------------\n");
+	printf("请输入当前卡号：");
+	if (scanf("%17s", aName) != 1)
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+		printf("输入无效。\n");
+		return;
+	}
+	printf("请输入当前密码：");
+	if (scanf("%7s", aPwd) != 1)
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+		printf("输入无效。\n");
+		return;
+	}
+	// 清理残余输入
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+	}
+
+	printf("请选择要修改的项目：\n");
+	printf("1. 修改账号名\n");
+	printf("2. 修改密码\n");
+	printf("3. 同时修改\n");
+	printf("0. 取消\n");
+	printf("请选择：");
+	int opt = -1;
+	if (scanf("%d", &opt) != 1)
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+		printf("输入无效。\n");
+		return;
+	}
+	// 清理残余输入
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+	}
+
+	if (opt == 0)
+	{
+		printf("已取消。\n");
+		return;
+	}
+	if (opt == 1 || opt == 3)
+	{
+		printf("请输入新账号名（长度1~17）：");
+		if (scanf("%17s", newName) != 1)
+		{
+			int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+			printf("输入无效。\n");
+			return;
+		}
+		modifyNameFlag = 1;
+	}
+	if (opt == 2 || opt == 3)
+	{
+		printf("请输入新密码（长度1~7）：");
+		if (scanf("%7s", newPwd) != 1)
+		{
+			int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+			printf("输入无效。\n");
+			return;
+		}
+		modifyPwdFlag = 1;
+	}
+	// 清理残余输入
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+	}
+
+	// 调用业务层
+	if (doModifyAccount(aName, aPwd, newName, newPwd, modifyNameFlag, modifyPwdFlag) == TRUE)
+	{
+		printf("修改成功！\n");
+	}
+	else
+	{
+		printf("修改失败！请检查卡号/密码或新账号名是否已存在，或系统错误。\n");
+	}
+}
 //退出
 void exitApp()
 {

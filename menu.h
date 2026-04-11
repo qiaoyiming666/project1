@@ -12,5 +12,10 @@ void addMoney(); //充值
 void refundMoney();    //退费
 
 void annul(); // 注销卡（新增）
+
+void modifyAccount(); // 修改账号名或密码
+
 void exitApp();     //退出
+
+
 #endif
