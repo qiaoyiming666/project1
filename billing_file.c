@@ -54,26 +54,57 @@ int readBilling(Billing* pBilling, const char* pPath)
 		// 文件不存在或打开失败
 		return FALSE;
 	}
-	char line[512];//每行最大长度假定为512
+
+	// 为安全起见，获取文件中记录的最大数量，避免超出 pBilling 分配的容量
+	int maxCount = getBillingCount(pPath);
+	if (maxCount <= 0)
+	{
+		fclose(fp);
+		return FALSE;
+	}
+
+    char line[2048];//每行最大长度提高到2048，防止超长行导致的截断和解析错误
 	int index = 0;//记录索引
 
 	while (fgets(line, sizeof(line), fp) != NULL)
 	{
-		// 去掉行尾换行
-		size_t len = strlen(line);
-		if (len == 0) continue;
-		if (line[len - 1] == '\n') line[len - 1] = '\0';
+        // 去掉行尾换行；如果行被截断（最后没有 '\n'），认为该行过长并跳过整行以避免解析错误
+        size_t len = strlen(line);
+        if (len == 0) continue;
+        int truncated = 0;
+        if (line[len - 1] == '\n')
+        {
+            line[len - 1] = '\0';
+        }
+        else
+        {
+            // 行未包含换行，说明被缓冲区截断，丢弃该行剩余部分
+            truncated = 1;
+            int ch;
+            while ((ch = fgetc(fp)) != EOF && ch != '\n') {}
+        }
+        if (truncated) continue; // 跳过过长被截断的行
 
 		// 分割字段: cardName##logon##logoff##amount##status##ndel
-		char tmp[512];
+		char tmp[2048];
 		strncpy(tmp, line, sizeof(tmp) - 1);
 		tmp[sizeof(tmp) - 1] = '\0';
 
-		char* token = NULL;
-		const char* delim = "##";
-		token = strtok(tmp, delim);
-		if (token == NULL) continue;//至少应该有一个字段（卡号），否则跳过
-		strncpy(pBilling[index].aCardName, token, sizeof(pBilling[index].aCardName) - 1);//复制卡号
+        // 清零目标结构，保证未赋值字段安全
+        if (index >= maxCount) break; // 保护性检查，避免溢出
+        memset(&pBilling[index], 0, sizeof(Billing));
+
+        char* token = NULL;
+        const char* delim = "##";
+        token = strtok(tmp, delim);
+        if (token == NULL)
+        {
+            // 跳过格式不对的行
+            continue;
+        }
+        // 复制卡号并确保以 NUL 结尾（按结构中定义的最大长度截断）
+        strncpy(pBilling[index].aCardName, token, sizeof(pBilling[index].aCardName) - 1);
+        pBilling[index].aCardName[sizeof(pBilling[index].aCardName) - 1] = '\0';
 
 		token = strtok(NULL, delim);
 		pBilling[index].tLogon = token ? stringToTime(token) : 0;//解析上机时间
@@ -90,9 +121,14 @@ int readBilling(Billing* pBilling, const char* pPath)
 		token = strtok(NULL, delim);
 		pBilling[index].nDel = token ? atoi(token) : 0;//解析删除标记
 
-		index++;//准备读取下一行
+        index++;//准备读取下一行
 	}
 	fclose(fp);
+    // 如果读取到的记录数少于 getBillingCount 的结果，清零剩余条目以保证调用方按 nCount 遍历时安全
+    for (; index < maxCount; index++)
+    {
+        memset(&pBilling[index], 0, sizeof(Billing));
+    }
 	return TRUE;
 }
 
@@ -108,7 +144,8 @@ int getBillingCount(const char* pPath)
 	{
 		return -1;
 	}
-	char line[512];
+	// 使用与 readBilling 相同的行缓冲大小，避免行拆分导致的计数不一致
+	char line[2048];
 	int count = 0;
 	while (fgets(line, sizeof(line), fp) != NULL)
 	{

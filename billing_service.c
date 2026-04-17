@@ -156,3 +156,174 @@ Billing* queryBilling(const char* pName, int* pIndex)
 	return NULL;
 
 }
+
+
+// 根据卡号和时间段查询消费记录。pCardName 为 NULL 表示不按卡过滤（查询所有）。
+Billing* queryBillingByCardAndRange(const char* pCardName, time_t tStart, time_t tEnd, int* pCount)
+{
+	if (pCount == NULL) return NULL;
+	*pCount = 0;
+
+	int nCount = getBillingCount(BILLINGPATH);// 获取总记录数
+	if (nCount <= 0) return NULL;
+
+	Billing* all = (Billing*)malloc(sizeof(Billing) * nCount);
+	if (all == NULL) return NULL;
+	if (readBilling(all, BILLINGPATH) == FALSE)
+	{
+		free(all);
+		return NULL;
+	}
+
+	// 暂存匹配项（最多 nCount），最后压缩
+	Billing* matches = (Billing*)malloc(sizeof(Billing) * nCount);
+	if (matches == NULL)
+	{
+		// 分配失败，释放已分配的 all 数组
+		free(all);
+		return NULL;
+	}
+	int m = 0;//匹配记录数
+	for (int i = 0; i < nCount; i++)
+	{
+		// 只统计已完成消费且未删除的记录
+		if (all[i].nStatus != 1 || all[i].nDel != 0) continue;
+
+		time_t t = all[i].tLogoff;//优先使用下机时间作为消费时间
+		if (t == 0) t = all[i].tLogon;//如果下机时间无效则使用上机时间
+
+		if (tStart != 0 && t < tStart) continue;//如果 tStart 不为 0 则过滤掉早于 tStart 的记录
+		if (tEnd != 0 && t > tEnd) continue;//如果 tEnd 不为 0 则过滤掉晚于 tEnd 的记录
+
+		if (pCardName != NULL && pCardName[0] != '\0')
+		{
+			// 如果 pCardName 不为 NULL 且不为空字符串，则过滤掉卡号不匹配的记录
+			if (strcmp(all[i].aCardName, pCardName) != 0) continue;
+		}
+		matches[m++] = all[i];
+	}
+	free(all);
+
+	if (m == 0)
+	{
+		free(matches);
+		*pCount = 0;
+		return NULL;
+	}
+
+	// 压缩数组
+	Billing* ret = (Billing*)realloc(matches, sizeof(Billing) * m);
+	if (ret == NULL)
+	{
+		// realloc 失败仍可返回 matches
+		ret = matches;
+	}
+	*pCount = m;
+	return ret;
+}
+
+// 统计时间段内总营业额（已完成消费）
+double getTotalTurnover(time_t tStart, time_t tEnd)
+{
+	double total = 0.0;
+	int nCount = getBillingCount(BILLINGPATH);
+	if (nCount <= 0) return 0.0;
+
+	Billing* all = (Billing*)malloc(sizeof(Billing) * nCount);
+	if (all == NULL) return 0.0;
+	if (readBilling(all, BILLINGPATH) == FALSE)
+	{
+		// 读取失败，释放已分配的 all 数组
+		free(all);
+		return 0.0;
+	}
+
+	for (int i = 0; i < nCount; i++)
+	{
+		if (all[i].nStatus != 1 || all[i].nDel != 0) continue;//只统计已完成消费且未删除的记录
+		time_t t = all[i].tLogoff;
+		if (t == 0) t = all[i].tLogon;
+		if (tStart != 0 && t < tStart) continue;
+		if (tEnd != 0 && t > tEnd) continue;
+		total += (double)all[i].fAmount;
+	}
+	free(all);
+	return total;
+}
+
+// 获取指定年份每个月营业额（已完成消费），months[0] 对应 1 月
+int getMonthlyTurnover(int year, double months[12])
+{
+	if (months == NULL) return FALSE;
+	for (int i = 0; i < 12; i++) months[i] = 0.0;
+
+	int nCount = getBillingCount(BILLINGPATH);
+	if (nCount <= 0) return TRUE; // 无记录，视为成功但全部为 0
+
+	Billing* all = (Billing*)malloc(sizeof(Billing) * nCount);
+	if (all == NULL) return FALSE;
+	if (readBilling(all, BILLINGPATH) == FALSE)
+	{
+		free(all);
+		return FALSE;
+	}
+
+	for (int i = 0; i < nCount; i++)
+	{
+		if (all[i].nStatus != 1 || all[i].nDel != 0) continue;
+		time_t t = all[i].tLogoff;
+		if (t == 0) t = all[i].tLogon;
+		if (t <= 0) continue;
+		struct tm* tm = localtime(&t);
+		if (tm == NULL) continue;
+		if (tm->tm_year == year - 1900)
+		{
+			// tm_year 是从 1900 年开始的，所以需要减去 1900 来比较年份
+			int mon = tm->tm_mon; // tm_mon 从 0 开始，0 表示 1 月，11 表示 12 月
+			if (mon >= 0 && mon < 12)
+			{
+				// 累加到对应月份，注意 tm_mon 从 0 开始，所以直接使用 mon 作为索引
+				months[mon] += (double)all[i].fAmount;
+			}
+		}
+	}
+	free(all);
+	return TRUE;
+}
+
+// 统计时间段内充值(in)和退费(out)
+int getCashFlow(time_t tStart, time_t tEnd, double* inSum, double* outSum)
+{
+	if (inSum == NULL || outSum == NULL) return FALSE;
+	*inSum = 0.0;
+	*outSum = 0.0;
+
+	int nCount = getMoneyCount(MONEYPATH);
+	if (nCount <= 0) return TRUE; // 没记录视为成功但为 0
+
+	Money* all = (Money*)malloc(sizeof(Money) * nCount);
+	if (all == NULL) return FALSE;
+	if (readMoney(all, MONEYPATH) == FALSE)
+	{
+		free(all);
+		return FALSE;
+	}
+
+	for (int i = 0; i < nCount; i++)
+	{
+		if (all[i].nDel != 0) continue;
+		time_t t = all[i].tTime;
+		if (tStart != 0 && t < tStart) continue;
+		if (tEnd != 0 && t > tEnd) continue;
+		if (all[i].nStatus == 0) // 充值
+		{
+			*inSum += (double)all[i].fAmount;
+		}
+		else if (all[i].nStatus == 1) // 退费
+		{
+			*outSum += (double)all[i].fAmount;
+		}
+	}
+	free(all);
+	return TRUE;
+}

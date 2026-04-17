@@ -34,28 +34,44 @@ void outputMenu()
 void add()
 {
 	Card card;
-	char aName[32] = { '\0' };
-	char aPwd[20] = { '\0' };
+    char aName[18] = { '\0' };
+    char aPwd[8] = { '\0' };
 
 	printf("---------------添加卡---------------\n");
 	printf("请输入卡号（长度1~18）：");
-	scanf("%s", aName);
-	 printf("请输入密码（长度1~8）：");
-	scanf("%s", aPwd);
+    // 使用宽度限制防止缓冲区溢出（aName 最多 17 字符，aPwd 最多 7 字符）
+    if (scanf("%17s", aName) != 1)
+    {
+        int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+        printf("输入无效。\n");
+        return;
+    }
+    printf("请输入密码（长度1~8）：");
+    if (scanf("%7s", aPwd) != 1)
+    {
+        int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+        printf("输入无效。\n");
+        return;
+    }
 	
 	//判断卡号和密码是否合法
 	int nNameSize = getSize(aName);
 	int nPwdSize = getSize(aPwd);
 
-	if (nNameSize > 18 || nPwdSize > 8)
+    // card.aName 和 card.aPwd 在 model.h 中分别为 18 / 8 字节
+    // 实际可存放的最大字符数分别为 17 / 7（保留 1 字节给 '\0'）
+    if (nNameSize > 17 || nPwdSize > 7)
 	{
 		printf("卡号或者密码超过规定长度！\n");
 		return;
 	}
 	else
 	{
-		strcpy(card.aName, aName);
-		strcpy(card.aPwd, aPwd);
+        // 使用 strncpy 并确保终止符，防止潜在越界
+        strncpy(card.aName, aName, sizeof(card.aName) - 1);
+        card.aName[sizeof(card.aName) - 1] = '\0';
+        strncpy(card.aPwd, aPwd, sizeof(card.aPwd) - 1);
+        card.aPwd[sizeof(card.aPwd) - 1] = '\0';
 	}
 
 	printf("请输入开卡金额（RMB）：");
@@ -438,6 +454,277 @@ void refundMoney()
 	}
 }
 
+// 追加查询结果到 STATPATH，格式：header##timestamp##body（body 中换行会被替换为空格）
+static void appendReport(const char* header, const char* body)
+{
+	FILE* fp = fopen(STATPATH, "a");
+	if (fp != NULL)
+	{
+		time_t now = time(NULL);
+		char timebuf[TIMELENGTH] = { 0 };
+		timeToString(now, timebuf);
+
+		// 复制 body 并替换换行/回车为单空格，防止多行破坏解析格式
+		char clean[4096] = { 0 };
+		if (body != NULL)
+		{
+			strncpy(clean, body, sizeof(clean) - 1);
+			for (size_t i = 0; i < strlen(clean); i++)
+			{
+				if (clean[i] == '\n' || clean[i] == '\r') clean[i] = ' ';
+			}
+		}
+
+		// 写入单行：header##time##content
+		fprintf(fp, "%s##%s##%s\n", header ? header : "", timebuf, clean);
+		fclose(fp);
+	}
+}
+
+// 查询统计菜单（重做）
+void queryStatistics()
+{
+	while (1)
+	{
+		printf("---------------查询统计---------------\n");
+		printf("1. 消费记录查询(按卡号、时间段)\n");
+		printf("2. 时间段总营业额(已完成消费)\n");
+		printf("3. 年度每月营业额(已完成消费)\n");
+		printf("4. 现金流统计(充值/退费)(时间段)\n");
+		printf("0. 返回上级菜单\n");
+		printf("请选择: ");
+
+		char optStr[16] = { 0 };
+		if (!readLineTrim(optStr, sizeof(optStr)))
+		{
+			printf("输入无效。\n");
+			continue;
+		}
+		int opt = -1;
+		if (sscanf(optStr, "%d", &opt) != 1)
+		{
+			printf("输入无效。\n");
+			continue;
+		}
+		if (opt == 0) break;
+
+		char startStr[TIMELENGTH] = { 0 };//时间字符串输入缓冲区
+		char endStr[TIMELENGTH] = { 0 };//时间字符串输入缓冲区
+		time_t tStart = 0, tEnd = 0;
+
+		if (opt == 1)
+		{
+			char cardName[18] = { 0 };
+			printf("请输入卡号(输入\"all\"表示查询所有): ");
+			if (!readLineTrim(cardName, sizeof(cardName))) { printf("输入无效。\n"); continue; }
+
+			printf("请输入开始时间(YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS, 可为空): ");
+			readLineTrim(startStr, sizeof(startStr));
+			printf("请输入结束时间(YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS, 可为空): ");
+			readLineTrim(endStr, sizeof(endStr));
+
+			if (strlen(startStr) > 0) tStart = stringToTime(startStr);
+			if (strlen(endStr) > 0) tEnd = stringToTime(endStr);
+
+			const char* pNameFilter = NULL;
+			if (strcmp(cardName, "all") != 0) pNameFilter = cardName;
+
+			int count = 0;
+			Billing* recs = queryBillingByCardAndRange(pNameFilter, tStart, tEnd, &count);
+			if (recs == NULL || count == 0)
+			{
+				printf("没有找到匹配的记录。\n");
+				appendReport("消费记录查询", "没有匹配记录。");
+				if (recs) free(recs);
+				continue;
+			}
+
+			// 构建并打印报表
+			size_t bufSize = (size_t)count * 128 + 1024;
+			char* buf = (char*)malloc(bufSize);
+			if (buf == NULL)
+			{
+				printf("内存不足，无法生成报表。\n");
+				free(recs);
+				continue;
+			}
+			buf[0] = '\0';
+			int off = 0;
+			off += snprintf(buf + off, bufSize - off, "消费记录 共 %d 条\n", count);
+			off += snprintf(buf + off, bufSize - off, "卡号\t消费时间\t\t金额\n");
+			printf("卡号\t消费时间\t\t金额\n");
+			double total = 0.0;
+			for (int i = 0; i < count; i++)
+			{
+				char timestr[TIMELENGTH] = { 0 };
+				timeToString(recs[i].tLogoff != 0 ? recs[i].tLogoff : recs[i].tLogon, timestr);
+				printf("%s\t%s\t%.1f\n", recs[i].aCardName, timestr, recs[i].fAmount);
+				off += snprintf(buf + off, bufSize - off, "%s\t%s\t%.1f\n", recs[i].aCardName, timestr, recs[i].fAmount);
+				total += recs[i].fAmount;
+			}
+			off += snprintf(buf + off, bufSize - off, "合计金额: %.2f\n", total);
+			printf("合计金额: %.2f\n", total);
+
+			// 追加到 STATPATH（简要）并写入详细时间戳文件
+			appendReport("消费记录查询", buf);
+
+			// 生成时间戳文件
+			{
+				time_t now = time(NULL);
+				char tmStr[TIMELENGTH] = { 0 };
+				timeToString(now, tmStr);
+				// sanitize tmStr to filename friendly
+				for (size_t i = 0; i < strlen(tmStr); i++)
+				{
+					if (tmStr[i] == ' ' || tmStr[i] == ':' || tmStr[i] == '-') tmStr[i] = '_';
+				}
+				char detailName[256] = { 0 };
+				snprintf(detailName, sizeof(detailName), "stat_detail_consume_%s.txt", tmStr);
+				FILE* fp = fopen(detailName, "w");
+				if (fp)
+				{
+					fprintf(fp, "查询时间: %s\n", tmStr);
+					fprintf(fp, "%s\n", buf);
+					fclose(fp);
+				}
+			}
+
+			free(buf);
+			free(recs);
+		}
+		else if (opt == 2)
+		{
+			printf("请输入开始时间(YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS, 可为空): ");
+			readLineTrim(startStr, sizeof(startStr));
+			printf("请输入结束时间(YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS, 可为空): ");
+			readLineTrim(endStr, sizeof(endStr));
+			if (strlen(startStr) > 0) tStart = stringToTime(startStr);
+			if (strlen(endStr) > 0) tEnd = stringToTime(endStr);
+
+			double total = getTotalTurnover(tStart, tEnd);
+			char out[256] = { 0 };
+			snprintf(out, sizeof(out), "时间段总营业额: %.2f", total);
+			printf("%s\n", out);
+			appendReport("时间段总营业额", out);
+
+			// 写详细文件
+			{
+				time_t now = time(NULL);
+				char tmStr[TIMELENGTH] = { 0 };
+				timeToString(now, tmStr);
+				for (size_t i = 0; i < strlen(tmStr); i++)
+				{
+					if (tmStr[i] == ' ' || tmStr[i] == ':' || tmStr[i] == '-') tmStr[i] = '_';
+				}
+				char detailName[256] = { 0 };
+				snprintf(detailName, sizeof(detailName), "stat_detail_turnover_%s.txt", tmStr);
+				FILE* fp = fopen(detailName, "w");
+				if (fp)
+				{
+					fprintf(fp, "查询时间: %s\n", tmStr);
+					fprintf(fp, "%s\n", out);
+					fclose(fp);
+				}
+			}
+		}
+		else if (opt == 3)
+		{
+			int year = 0;
+			printf("请输入年份(YYYY): ");
+			char yearStr[16] = { 0 };
+			if (!readLineTrim(yearStr, sizeof(yearStr)) || sscanf(yearStr, "%d", &year) != 1)
+			{
+				printf("输入无效。\n");
+				continue;
+			}
+			double months[12] = { 0 };
+			if (!getMonthlyTurnover(year, months))
+			{
+				printf("无法获取信息\n");
+				continue;
+			}
+			char buf[2048] = { 0 };
+			int off = 0;
+			off += snprintf(buf + off, sizeof(buf) - off, "年份 %d 每月营业额\n", year);
+			printf("月份\t营业额\n");
+			double sum = 0.0;
+			for (int i = 0; i < 12; i++)
+			{
+				printf("%2d\t%.2f\n", i + 1, months[i]);
+				off += snprintf(buf + off, sizeof(buf) - off, "%02d\t%.2f\n", i + 1, months[i]);
+				sum += months[i];
+			}
+			off += snprintf(buf + off, sizeof(buf) - off, "年度合计: %.2f\n", sum);
+			printf("年度合计: %.2f\n", sum);
+			appendReport("年度月度营业额", buf);
+
+			// 写详细文件
+			{
+				time_t now = time(NULL);
+				char tmStr[TIMELENGTH] = { 0 };
+				timeToString(now, tmStr);
+				for (size_t i = 0; i < strlen(tmStr); i++)
+				{
+					if (tmStr[i] == ' ' || tmStr[i] == ':' || tmStr[i] == '-') tmStr[i] = '_';
+				}
+				char detailName[256] = { 0 };
+				snprintf(detailName, sizeof(detailName), "stat_detail_monthly_%d_%s.txt", year, tmStr);
+				FILE* fp = fopen(detailName, "w");
+				if (fp)
+				{
+					fprintf(fp, "查询时间: %s\n", tmStr);
+					fprintf(fp, "%s\n", buf);
+					fclose(fp);
+				}
+			}
+		}
+		else if (opt == 4)
+		{
+			printf("请输入开始时间(YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS, 可为空): ");
+			readLineTrim(startStr, sizeof(startStr));
+			printf("请输入结束时间(YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS, 可为空): ");
+			readLineTrim(endStr, sizeof(endStr));
+			if (strlen(startStr) > 0) tStart = stringToTime(startStr);
+			if (strlen(endStr) > 0) tEnd = stringToTime(endStr);
+
+			double inSum = 0.0, outSum = 0.0;
+			if (!getCashFlow(tStart, tEnd, &inSum, &outSum))
+			{
+				printf("获取现金流信息失败。\n");
+				continue;
+			}
+			char out[256] = { 0 };
+			snprintf(out, sizeof(out), "时间段充值总额: %.2f\n时间段退费总额: %.2f\n净现金流: %.2f", inSum, outSum, inSum - outSum);
+			printf("%s\n", out);
+			appendReport("时间段现金流(充值/退费)", out);
+
+			// 写详细文件
+			{
+				time_t now = time(NULL);
+				char tmStr[TIMELENGTH] = { 0 };
+				timeToString(now, tmStr);
+				for (size_t i = 0; i < strlen(tmStr); i++)
+				{
+					if (tmStr[i] == ' ' || tmStr[i] == ':' || tmStr[i] == '-') tmStr[i] = '_';
+				}
+				char detailName[256] = { 0 };
+				snprintf(detailName, sizeof(detailName), "stat_detail_cashflow_%s.txt", tmStr);
+				FILE* fp = fopen(detailName, "w");
+				if (fp)
+				{
+					fprintf(fp, "查询时间: %s\n", tmStr);
+					fprintf(fp, "%s\n", out);
+					fclose(fp);
+				}
+			}
+		}
+		else
+		{
+			printf("输入无效。\n");
+		}
+	}
+}
+
 //注销卡
 void annul()
 {
@@ -512,7 +799,7 @@ void modifyAccount()
 		printf("输入无效。\n");
 		return;
 	}
-	// 清理残余输入
+	// 清理残留输入
 	{
 		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
 	}

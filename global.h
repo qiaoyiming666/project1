@@ -9,6 +9,7 @@
 #define CARDPATH "data\\card.ams" //卡信息文件路径
 #define BILLINGPATH "data\\billing.ams" //消费记录文件路径
 #define MONEYPATH "data\\money.ams" //充值记录文件路径
+#define STATPATH "data\\statistics.ams" //统计输出文件路径
 
 #define LOGONFAILURE 0 //上机失败
 #define LOGONSUCCESS 1 //上机成功
@@ -23,5 +24,5 @@
 //单位时间：15分钟，每单位时间的费用：0.5元
 #define UNITPRICE 0.5f //每单位时间的费用
 #define UNITTIME 15*60 //单位时间对应的秒数
-
+#define TIMELENGTH 20 //时间字符串长度
 #endif

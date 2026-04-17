@@ -82,7 +82,7 @@ int main(void)
 		}
 		case 7:
 		{
-			printf("²éÑ¯ÏµÍ³\n");
+			queryStatistics();
 			break;
 		}
 		case 8:
