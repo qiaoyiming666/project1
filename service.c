@@ -212,6 +212,12 @@ int doAddMoney(const char* pName, const char* pPwd, MoneyInfo* pMoneyInfo)
 		if (pCard) free(pCard);
 		return FALSE;
 	}
+    // 不允许已注销的卡充值（nStatus == 2 表示已注销）
+    if (pCard->nStatus == 2)
+    {
+        free(pCard);
+        return FALSE;
+    }
 	//if (pCard->nStatus == 1)
 	//{
 	//	// 卡正在使用，不允许充值
@@ -272,7 +278,8 @@ int doRefund(const char* pName,const char* pwd, float fAmount)
 		if (pCard) free(pCard);
 		return FALSE;
 	}
-	if(pCard->nStatus == 1)
+    // 不允许已上机或已注销的卡退款（1-正在使用；2-已注销）
+    if(pCard->nStatus == 1 || pCard->nStatus == 2)
 	{
 		//卡正在使用，返回退款失败状态码
 		free(pCard);

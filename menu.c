@@ -31,6 +31,18 @@ void outputMenu()
 	//提示选择菜单编号
 	printf("请选择菜单编号（0~9）：");
 }
+// 将数值状态转换为可读文本
+static const char* statusToString(int status)
+{
+    switch (status)
+    {
+    case 0: return "未使用";
+    case 1: return "正在使用";
+    case 2: return "已注销";
+    case 3: return "失效";
+    default: return "未知";
+    }
+}
 //添加卡
 void add()
 {
@@ -39,20 +51,77 @@ void add()
     char aPwd[8] = { '\0' };
 
 	printf("---------------添加卡---------------\n");
-	printf("请输入卡号（长度1~18）：");
-    // 使用宽度限制防止缓冲区溢出（aName 最多 17 字符，aPwd 最多 7 字符）
-    if (scanf("%17s", aName) != 1)
+    /* 读取卡号：使用 fgets 捕获整行，检测长度，超长时提供重试或返回选项 */
     {
-        int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
-        printf("输入无效。\n");
-        return;
+        char tmp[512] = {0};
+        while (1)
+        {
+            printf("请输入卡号（长度1~18）：");
+            if (fgets(tmp, sizeof(tmp), stdin) == NULL)
+            {
+                printf("输入无效。\n");
+                return;
+            }
+            /* 去掉末尾换行 */
+            size_t ln = strlen(tmp);
+            if (ln > 0 && (tmp[ln-1] == '\n' || tmp[ln-1] == '\r')) tmp[--ln] = '\0';
+
+            /* 去掉两端空白 */
+            while (ln > 0 && (tmp[0] == ' ' || tmp[0] == '\t'))
+            {
+                memmove(tmp, tmp+1, --ln + 1);
+            }
+            while (ln > 0 && (tmp[ln-1] == ' ' || tmp[ln-1] == '\t')) tmp[--ln] = '\0';
+
+            if (ln == 0)
+            {
+                printf("卡号不能为空，请重新输入。\n");
+                continue;
+            }
+            if (ln > 17)
+            {
+                int choice = 0;
+                while (1)
+                {
+                    printf("卡号长度(%zu)超过最大允许长度17！\n", ln);
+                    printf("是否重新输入？1. 继续  2. 返回\n");
+                    printf("请选择(1/2): ");
+                    char optbuf[16] = {0};
+                    if (fgets(optbuf, sizeof(optbuf), stdin) == NULL) return;
+                    if (sscanf(optbuf, "%d", &choice) != 1) { printf("输入无效，请输入1或2。\n"); continue; }
+                    if (choice == 1) break; /* 重新输入卡号 */
+                    if (choice == 2) return; /* 放弃添加 */
+                    printf("选择无效，请输入1或2。\n");
+                }
+                continue; /* 重新输入卡号 */
+            }
+            /* 合法长度，拷贝并退出循环 */
+            strncpy(aName, tmp, sizeof(aName) - 1);
+            aName[sizeof(aName) - 1] = '\0';
+            break;
+        }
     }
-    printf("请输入密码（长度1~8）：");
-    if (scanf("%7s", aPwd) != 1)
+    /* 读取密码，使用 fgets 以避免 stdin 中残留数据影响后续读取 */
     {
-        int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
-        printf("输入无效。\n");
-        return;
+        char tmpPwd[64] = {0};
+        printf("请输入密码（长度1~8）：");
+        if (fgets(tmpPwd, sizeof(tmpPwd), stdin) == NULL)
+        {
+            printf("输入无效。\n");
+            return;
+        }
+        size_t ln = strlen(tmpPwd);
+        if (ln > 0 && (tmpPwd[ln-1] == '\n' || tmpPwd[ln-1] == '\r')) tmpPwd[--ln] = '\0';
+        /* 去掉首尾空白 */
+        while (ln > 0 && (tmpPwd[0] == ' ' || tmpPwd[0] == '\t')) { memmove(tmpPwd, tmpPwd+1, --ln + 1); }
+        while (ln > 0 && (tmpPwd[ln-1] == ' ' || tmpPwd[ln-1] == '\t')) tmpPwd[--ln] = '\0';
+        if (ln == 0)
+        {
+            printf("密码不能为空。\n");
+            return;
+        }
+        strncpy(aPwd, tmpPwd, sizeof(aPwd) - 1);
+        aPwd[sizeof(aPwd) - 1] = '\0';
     }
 	
 	//判断卡号和密码是否合法
@@ -76,7 +145,18 @@ void add()
 	}
 
 	printf("请输入开卡金额（RMB）：");
-	scanf("%f", &card.fBalance);
+	/* 读取开卡金额并验证输入有效性和非负 */
+	if (scanf("%f", &card.fBalance) != 1)
+	{
+		int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+		printf("开卡金额输入无效。\n");
+		return;
+	}
+	if (card.fBalance < 0.0f)
+	{
+		printf("开卡金额不能为负！\n");
+		return;
+	}
 	
 	card.fTotalUse = card.fBalance;  //初始化累计使用金额
 	card.nUseCount = 0;           //初始化使用次数
@@ -121,80 +201,116 @@ int getSize(const char* pInfo)
 	return nSize;
 }
 //查询卡信息
-void query()      
+void query()
 {
-	char aName[18] = { 0 };//卡号
-	char aTime[TIMELENGTH] = { 0 };//时间字符串
-	Card* pCard = NULL;//保存卡信息
+    char aName[18] = { 0 };//卡号
+    char aTime[TIMELENGTH] = { 0 };//时间字符串
+    Card* pCard = NULL;//保存卡信息
 
-	int nIndex = 0;
-	int i;
+    int nIndex = 0;
+    int i;
+    int opt = 0;
 
-	printf("请输入查询的卡号：");
-	fflush(stdout);            // 确保提示立即输出
-	//scanf("%s", aName); 
+    printf("请选择查询方式：\n1-精确查询  2-模糊查询 ：");
+    if (scanf("%d", &opt) != 1)
+    {
+        int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+        opt = 2;
+    }
+    // 清理残留输入
+    {
+        int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+    }
 
-	if (scanf("%17s", aName) != 1) // 限制最多读入17个字符，留1字节给终止符
-	{
-		int ch;
-		while ((ch = getchar()) != '\n' && ch != EOF) {} // 清理残留输入
-		printf("输入无效。\n");
-		return;
-	}
+    if (opt == 1)
+    {
+        // 精确查询
+        printf("请输入要精确查询的卡号：");
+        if (scanf("%17s", aName) != 1)
+        {
+            int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+            printf("输入无效。\n");
+            return;
+        }
+        // 调用精确查询
+        pCard = queryCard(aName);
+        if (pCard == NULL)
+        {
+            printf("未找到卡号：'%s'。\n", aName);
+            return;
+        }
+        // 输出单条记录
+        timeToString(pCard->tLastUse, aTime);
+        printf("查询到的卡信息如下：\n");
+        printf("卡号\t状态\t余额\t累计使用\t使用次数\t上次使用时间\n");
+        printf("%s\t%s\t%0.1f\t%0.1f\t\t%d\t\t%s\t\n",
+            pCard->aName,
+            statusToString(pCard->nStatus),
+            pCard->fBalance,
+            pCard->fTotalUse,
+            pCard->nUseCount,
+            aTime);
+        return;
+    }
 
-	//查询卡
-	pCard = queryCardsInfo(aName, &nIndex);
+    // 默认为模糊查询
+    printf("请输入查询的卡号（支持部分匹配）：");
+    fflush(stdout);
+    if (scanf("%17s", aName) != 1)
+    {
+        int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+        printf("输入无效。\n");
+        return;
+    }
 
-	// 处理查询失败、未找到或其它异常的情况，给出明确反馈并保证内存安全
-	if (pCard == NULL && nIndex == 0)
-	{
-		// 完全未获取到数据（可能是读取文件错误或query内部失败）
-		printf("查询失败：无法读取卡信息（可能是数据文件损坏或读取失败）。\n");
-		return;
-	}
-	// nIndex == 0 表示没有匹配项，但 pCard 不为 NULL 可能是 queryCardsInfo 内部分配了内存但未找到匹配项的情况
-	if (nIndex == 0)
-	{
-		// 没有匹配项，释放可能分配的内存并给出友好提示
-		if (pCard != NULL)
-		{
-			free(pCard);
-			pCard = NULL;
-		}
-		printf("未找到匹配的卡号：'%s'。\n", aName);
-		printf("提示：\n");
-		printf(" - 请检查卡号是否输入正确（大小写/字符）\n");
-		printf(" - 支持部分匹配查询，例如输入一部分名称\n");
-		return;
-	}
-	//显示
-	printf("查询到的卡信息如下：\n");
-	for (i = 0;i < nIndex;i++)
-	{
-		if (pCard == NULL)
-		{
-			printf("内部错误\n");//卡信息指针为空。
-			break;
-		}
-		//将时间转化为字符串
-		timeToString(pCard[i].tLastUse, aTime);
+    //查询卡
+    pCard = queryCardsInfo(aName, &nIndex);
 
-		printf("卡号\t状态\t余额\t累计使用\t使用次数\t上次使用时间\n");
-		printf("%s\t%d\t%0.1f\t%0.1f\t\t%d\t\t%s\t\n", 
-			pCard[i].aName, 
-			pCard[i].nStatus, 
-			pCard[i].fBalance, 
-			pCard[i].fTotalUse, 
-			pCard[i].nUseCount, 
-			aTime);
-	}
-		
-	// 用完释放内存
-	if (pCard != NULL)
-	{
-		free(pCard);
-		pCard = NULL;
-	}
+    // 处理查询失败、未找到或其它异常的情况，给出明确反馈并保证内存安全
+    if (pCard == NULL && nIndex == 0)
+    {
+        // 完全未获取到数据（可能是读取文件错误或query内部失败）
+        printf("查询失败：无法读取卡信息（可能是数据文件损坏或读取失败）。\n");
+        return;
+    }
+    if (nIndex == 0)
+    {
+        if (pCard != NULL)
+        {
+            free(pCard);
+            pCard = NULL;
+        }
+        printf("未找到匹配的卡号：'%s'。\n", aName);
+        printf("提示：\n - 请检查卡号是否输入正确（大小写/字符）\n - 支持部分匹配查询，例如输入一部分名称\n");
+        return;
+    }
+
+    //显示
+    printf("查询到的卡信息如下：\n");
+    printf("卡号\t状态\t余额\t累计使用\t使用次数\t上次使用时间\n");
+    for (i = 0; i < nIndex; i++)
+    {
+        if (pCard == NULL)
+        {
+            printf("内部错误\n");
+            break;
+        }
+        timeToString(pCard[i].tLastUse, aTime);
+        printf("%s\t%s\t%0.1f\t%0.1f\t\t%d\t\t%s\t\n",
+            pCard[i].aName,
+            statusToString(pCard[i].nStatus),
+            pCard[i].fBalance,
+            pCard[i].fTotalUse,
+            pCard[i].nUseCount,
+            aTime);
+    }
+
+    // 用完释放内存
+    if (pCard != NULL)
+    {
+        free(pCard);
+        pCard = NULL;
+    }
 }
 
 //上机

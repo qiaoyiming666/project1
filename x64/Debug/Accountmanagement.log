@@ -1,2 +1,4 @@
-﻿  menu.c
+﻿  service.c
+D:\code\C解决方案\AMS\Accountmanagement\service.c(109,29): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
+D:\code\C解决方案\AMS\Accountmanagement\service.c(119,20): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
   Accountmanagement.vcxproj -> D:\code\C解决方案\AMS\x64\Debug\Accountmanagement.exe
