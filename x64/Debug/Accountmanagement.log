@@ -1,3 +1,2 @@
-﻿  billing_file.c
-D:\code\C解决方案\AMS\Accountmanagement\billing_file.c(59,17): warning C4013: “getBillingCount”未定义；假设外部返回 int
+﻿  menu.c
   Accountmanagement.vcxproj -> D:\code\C解决方案\AMS\x64\Debug\Accountmanagement.exe

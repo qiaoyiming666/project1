@@ -94,32 +94,35 @@ int readBilling(Billing* pBilling, const char* pPath)
         if (index >= maxCount) break; // 保护性检查，避免溢出
         memset(&pBilling[index], 0, sizeof(Billing));
 
-        char* token = NULL;
-        const char* delim = "##";
-        token = strtok(tmp, delim);
-        if (token == NULL)
+        /* 手动按分隔符 "##" 切分，避免 strtok 跳过空字段导致字段错位 */
+        char* fields[6] = { 0 };
+        char* curptr = tmp;
+        for (int f = 0; f < 5; f++)
         {
-            // 跳过格式不对的行
-            continue;
+            char* pos = strstr(curptr, "##");
+            if (pos == NULL) break;
+            *pos = '\0';
+            fields[f] = curptr;
+            curptr = pos + 2; /* skip "##" */
         }
-        // 复制卡号并确保以 NUL 结尾（按结构中定义的最大长度截断）
-        strncpy(pBilling[index].aCardName, token, sizeof(pBilling[index].aCardName) - 1);
+        /* last field */
+        fields[5] = curptr;
+
+        /* fields[0] must be present (card name) */
+        if (fields[0] == NULL)
+        {
+            continue; /* 格式不对，跳过该行 */
+        }
+
+        /* 复制并保证终止 */
+        strncpy(pBilling[index].aCardName, fields[0], sizeof(pBilling[index].aCardName) - 1);
         pBilling[index].aCardName[sizeof(pBilling[index].aCardName) - 1] = '\0';
 
-		token = strtok(NULL, delim);
-		pBilling[index].tLogon = token ? stringToTime(token) : 0;//解析上机时间
-
-		token = strtok(NULL, delim);
-		pBilling[index].tLogoff = token ? stringToTime(token) : 0;//解析下机时间
-
-		token = strtok(NULL, delim);
-		pBilling[index].fAmount = token ? (float)atof(token) : 0.0f;//解析消费金额
-
-		token = strtok(NULL, delim);
-		pBilling[index].nStatus = token ? atoi(token) : 0;//解析状态
-
-		token = strtok(NULL, delim);
-		pBilling[index].nDel = token ? atoi(token) : 0;//解析删除标记
+        pBilling[index].tLogon = fields[1] ? stringToTime(fields[1]) : 0;
+        pBilling[index].tLogoff = fields[2] ? stringToTime(fields[2]) : 0;
+        pBilling[index].fAmount = fields[3] ? (float)atof(fields[3]) : 0.0f;
+        pBilling[index].nStatus = fields[4] ? atoi(fields[4]) : 0;
+        pBilling[index].nDel = fields[5] ? atoi(fields[5]) : 0;
 
         index++;//准备读取下一行
 	}

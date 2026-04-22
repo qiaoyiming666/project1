@@ -1,10 +1,12 @@
 #define _CRT_SECURE_NO_WARNINGS
 
-#include<stdio.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include"menu.h"
-#include"card_service.h"
-#include"global.h"
+#include "menu.h"
+#include "card_service.h"
+#include "global.h"
 
 int main(void)
 {
@@ -34,7 +36,7 @@ int main(void)
 			// 读取失败（非数字），清空输入并提示
 			int ch;
 			while ((ch = getchar()) != '\n' && ch != EOF) {}
-			printf("输入的菜单序列号错误！请输入 0~8 之间的数字。\n");
+			printf("输入的菜单序列号错误！请输入 0~9 之间的数字。\n");
 			// 设置为非法值，继续循环提示菜单
 			nSelection = -1;
 			continue;
